@@ -1,6 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:polar_glow/providers/auth_provider.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -22,26 +21,26 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    final auth = Provider.of<AuthProvider>(context, listen: false);
-
-    String? error;
-    if (_isLogin) {
-      error = await auth.signIn(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
-    } else {
-      error = await auth.signUp(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
-    }
-
-    if (mounted) {
-      setState(() {
-        _errorMessage = error;
-        _isLoading = false;
-      });
+    try {
+      if (_isLogin) {
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+      } else {
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+        // New users automatically get a 'customer' role via Cloud Function or on first login (we'll add auto-create next if needed)
+      }
+      // NO Navigator.push needed — AuthWrapper's StreamBuilder will handle routing
+    } on FirebaseAuthException catch (e) {
+      setState(() => _errorMessage = e.message ?? 'Something went wrong');
+    } catch (e) {
+      setState(() => _errorMessage = 'Unexpected error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -99,6 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   obscureText: true,
                 ),
+
                 if (_errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -108,6 +108,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
+
                 const SizedBox(height: 24),
 
                 if (_isLoading)
