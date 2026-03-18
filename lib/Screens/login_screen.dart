@@ -1,5 +1,8 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import 'register_screen.dart'; // ← new
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -9,36 +12,45 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
+  final _identifierController = TextEditingController(); // Email OR Username
   final _passwordController = TextEditingController();
-  bool _isLogin = true;
   bool _isLoading = false;
   String? _errorMessage;
 
-  Future<void> _submitEmailPassword() async {
+  Future<void> _submitLogin() async {
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
+    final identifier = _identifierController.text.trim();
+    final password = _passwordController.text.trim();
+
     try {
-      if (_isLogin) {
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-      } else {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: _emailController.text.trim(),
-          password: _passwordController.text.trim(),
-        );
-        // New users automatically get a 'customer' role via Cloud Function or on first login (we'll add auto-create next if needed)
+      String emailToUse = identifier;
+
+      // If it's NOT an email, treat as username and lookup real email
+      if (!identifier.contains('@')) {
+        final usernameDoc = await FirebaseFirestore.instance
+            .collection('usernames')
+            .doc(identifier.toLowerCase())
+            .get();
+
+        if (!usernameDoc.exists) {
+          throw 'Username not found. Please check spelling or sign up.';
+        }
+        emailToUse = usernameDoc['email'] as String;
       }
-      // NO Navigator.push needed — AuthWrapper's StreamBuilder will handle routing
+
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: emailToUse,
+        password: password,
+      );
+      // AuthWrapper will auto-route based on role
     } on FirebaseAuthException catch (e) {
-      setState(() => _errorMessage = e.message ?? 'Something went wrong');
+      setState(() => _errorMessage = e.message ?? 'Login failed');
     } catch (e) {
-      setState(() => _errorMessage = 'Unexpected error: $e');
+      setState(() => _errorMessage = e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -58,9 +70,8 @@ class _LoginScreenState extends State<LoginScreen> {
               children: [
                 Image.asset('assets/images/logo.png', width: 160),
                 const SizedBox(height: 48),
-
                 Text(
-                  _isLogin ? 'Welcome Back' : 'Join Polar Glow',
+                  'Welcome Back',
                   style: TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.bold,
@@ -69,22 +80,19 @@ class _LoginScreenState extends State<LoginScreen> {
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 32),
-
                 TextField(
-                  controller: _emailController,
+                  controller: _identifierController,
                   decoration: InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email, color: colorScheme.primary),
+                    labelText: 'Email or Username',
+                    prefixIcon: Icon(Icons.person, color: colorScheme.primary),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                     filled: true,
                     fillColor: colorScheme.surfaceContainerLowest,
                   ),
-                  keyboardType: TextInputType.emailAddress,
                 ),
                 const SizedBox(height: 16),
-
                 TextField(
                   controller: _passwordController,
                   decoration: InputDecoration(
@@ -98,7 +106,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   obscureText: true,
                 ),
-
                 if (_errorMessage != null)
                   Padding(
                     padding: const EdgeInsets.symmetric(vertical: 12),
@@ -108,31 +115,25 @@ class _LoginScreenState extends State<LoginScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
-
                 const SizedBox(height: 24),
-
                 if (_isLoading)
                   const CircularProgressIndicator()
                 else
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _submitEmailPassword,
-                      child: Text(_isLogin ? 'Login' : 'Sign Up'),
+                      onPressed: _submitLogin,
+                      child: const Text('Login'),
                     ),
                   ),
-
                 const SizedBox(height: 16),
-
                 TextButton(
-                  onPressed: () => setState(() {
-                    _isLogin = !_isLogin;
-                    _errorMessage = null;
-                  }),
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                  ),
                   child: Text(
-                    _isLogin
-                        ? "Don't have an account? Sign Up"
-                        : 'Already have an account? Login',
+                    "Don't have an account? Sign Up",
                     style: TextStyle(color: colorScheme.primary),
                   ),
                 ),
@@ -146,7 +147,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _identifierController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
