@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
-import 'Providers/auth_provider.dart';
-import 'Screens/auth_wrapper.dart';
+import 'Providers/auth_provider.dart'; // ← still points to your updated provider
+import 'auth_wrapper.dart'; // ← NEW: points to the clean root-level file we created
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

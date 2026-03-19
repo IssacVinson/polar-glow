@@ -1,85 +1,47 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import '../core/services/firestore_service.dart';
+import '../core/models/app_user.dart';
 
 class AuthProvider with ChangeNotifier {
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirestoreService _firestore = FirestoreService();
+
   User? _user;
-  String? _role; // 'customer', 'employee', 'admin', or null
+  AppUser? _appUser;
+  bool _isLoading = false;
 
   User? get user => _user;
-  String? get role => _role;
-  bool get isLoggedIn => _user != null;
+  AppUser? get appUser => _appUser;
+  bool get isLoading => _isLoading;
 
   AuthProvider() {
-    // Listen to auth state changes (login/logout)
-    FirebaseAuth.instance.authStateChanges().listen((User? user) async {
+    _auth.authStateChanges().listen((User? user) async {
       _user = user;
-
       if (user != null) {
-        // Fetch role from Firestore
-        try {
-          final doc = await FirebaseFirestore.instance
-              .collection('users')
-              .doc(user.uid)
-              .get();
-
-          _role = doc.data()?['role'] as String? ?? 'customer';
-        } catch (e) {
-          debugPrint('Error fetching role: $e');
-          _role = 'customer'; // fallback
-        }
+        _appUser = await _firestore.getUser(user.uid);
       } else {
-        _role = null;
+        _appUser = null;
       }
-
       notifyListeners();
     });
   }
 
-  /// Sign in with email and password
-  Future<String?> signIn(String email, String password) async {
+  Future<void> signIn(String email, String password) async {
+    _isLoading = true;
+    notifyListeners();
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: email.trim(),
-        password: password.trim(),
-      );
-      return null; // success = no error
-    } on FirebaseAuthException catch (e) {
-      return e.message ?? 'Login failed';
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
     } catch (e) {
-      return 'An error occurred: $e';
+      rethrow;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
-  /// Sign up with email and password (defaults to 'customer' role)
-  Future<String?> signUp(String email, String password) async {
-    try {
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: email.trim(),
-            password: password.trim(),
-          );
-
-      // Create user document with default role
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(credential.user!.uid)
-          .set({
-            'email': email.trim(),
-            'role': 'customer',
-            'createdAt': FieldValue.serverTimestamp(),
-          });
-
-      return null; // success
-    } on FirebaseAuthException catch (e) {
-      return e.message ?? 'Sign up failed';
-    } catch (e) {
-      return 'An error occurred: $e';
-    }
-  }
-
-  /// Sign out
+  // signUp, signOut, etc. stay the same (just call _firestore.getUserRole if needed)
   Future<void> signOut() async {
-    await FirebaseAuth.instance.signOut();
+    await _auth.signOut();
   }
 }

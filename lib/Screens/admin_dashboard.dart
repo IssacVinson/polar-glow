@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'user_promotion_screen.dart'; // Promote Accounts
 import 'admin_employee_list_screen.dart'; // Track Employees
 import 'admin_schedule_calendar_screen.dart'; // Overall Schedule
+import 'admin_services_screen.dart'; // ← NEW: Manage Services
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -35,7 +36,6 @@ class AdminDashboard extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const SizedBox(height: 16),
-
               Text(
                 'Admin Controls',
                 style: theme.textTheme.headlineMedium?.copyWith(
@@ -44,9 +44,7 @@ class AdminDashboard extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 8),
-
               Text(
                 'Manage users, schedules & more',
                 style: theme.textTheme.bodyLarge?.copyWith(
@@ -54,15 +52,13 @@ class AdminDashboard extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-
               const SizedBox(height: 40),
-
               Expanded(
                 child: GridView.count(
                   crossAxisCount: 2,
                   mainAxisSpacing: 20,
                   crossAxisSpacing: 20,
-                  childAspectRatio: 1.05, // slightly taller cards
+                  childAspectRatio: 1.05,
                   padding: const EdgeInsets.only(bottom: 24),
                   children: [
                     _TaskCard(
@@ -73,8 +69,7 @@ class AdminDashboard extends StatelessWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const UserPromotionScreen(),
-                        ),
+                            builder: (_) => const UserPromotionScreen()),
                       ),
                     ),
                     _TaskCard(
@@ -85,8 +80,7 @@ class AdminDashboard extends StatelessWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const AdminEmployeeListScreen(),
-                        ),
+                            builder: (_) => const AdminEmployeeListScreen()),
                       ),
                     ),
                     _TaskCard(
@@ -97,8 +91,19 @@ class AdminDashboard extends StatelessWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (_) => const AdminScheduleCalendarScreen(),
-                        ),
+                            builder: (_) =>
+                                const AdminScheduleCalendarScreen()),
+                      ),
+                    ),
+                    _TaskCard(
+                      icon: Icons.list_alt_rounded,
+                      title: 'Manage Services',
+                      subtitle: 'Edit pricing & offerings',
+                      color: Colors.purple,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const AdminServicesScreen()),
                       ),
                     ),
                     _TaskCard(
@@ -137,9 +142,6 @@ class AdminDashboard extends StatelessWidget {
           behavior: SnackBarBehavior.floating,
         ),
       );
-
-      // Optional: navigate to login / splash
-      // Navigator.pushReplacementNamed(context, '/login');
     } catch (e) {
       if (!context.mounted) return;
       messenger.showSnackBar(

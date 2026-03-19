@@ -1,10 +1,7 @@
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 
 /// Formats phone as (907) 518-4614 while typing
 class PhoneFormatter extends TextInputFormatter {
@@ -51,34 +48,22 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   String? _usernameError;
-  Uint8List? _imageBytes;
-  final ImagePicker _picker = ImagePicker();
+
+  // Proper email validation
+  final _emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
 
   Future<bool> _isUsernameAvailable(String username) async {
-    final lower = username.toLowerCase();
-    final doc = await FirebaseFirestore.instance
-        .collection('usernames')
-        .doc(lower)
-        .get();
-    return !doc.exists;
-  }
-
-  Future<void> _pickImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-
-    final bytes = await picked.readAsBytes();
-    setState(() => _imageBytes = bytes);
-  }
-
-  Future<String?> _uploadPhoto(String uid) async {
-    if (_imageBytes == null) return null;
-
-    final ref =
-        FirebaseStorage.instance.ref().child('profile_pictures/$uid.jpg');
-
-    await ref.putData(_imageBytes!);
-    return await ref.getDownloadURL();
+    try {
+      final lower = username.toLowerCase();
+      final doc = await FirebaseFirestore.instance
+          .collection('usernames')
+          .doc(lower)
+          .get();
+      return !doc.exists;
+    } catch (e) {
+      setState(() => _errorMessage = 'Error checking username: $e');
+      return false;
+    }
   }
 
   Future<void> _register() async {
@@ -105,14 +90,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
       );
 
       final uid = cred.user!.uid;
-      final photoURL = await _uploadPhoto(uid);
 
       await FirebaseFirestore.instance.collection('users').doc(uid).set({
         'username': username,
         'displayName': _nameController.text.trim(),
         'phoneNumber': _phoneController.text.trim(),
         'email': _emailController.text.trim(),
-        'photoURL': photoURL,
         'role': 'customer',
         'createdAt': FieldValue.serverTimestamp(),
       });
@@ -125,6 +108,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'email': _emailController.text.trim(),
       });
 
+      // Auto-login
       await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
@@ -132,7 +116,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Account created and logged in!')),
+          const SnackBar(content: Text('✅ Account created and logged in!')),
         );
         Navigator.pop(context);
       }
@@ -153,20 +137,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
           key: _formKey,
           child: Column(
             children: [
-              GestureDetector(
-                onTap: _pickImage,
-                child: CircleAvatar(
-                  radius: 60,
-                  backgroundImage:
-                      _imageBytes != null ? MemoryImage(_imageBytes!) : null,
-                  child: _imageBytes == null
-                      ? const Icon(Icons.add_a_photo, size: 40)
-                      : null,
-                ),
-              ),
-              const SizedBox(height: 8),
-              const Text('Tap to choose profile picture (optional)'),
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
+
+              // Username
               TextFormField(
                 controller: _usernameController,
                 decoration: InputDecoration(
@@ -186,28 +159,40 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 },
               ),
               const SizedBox(height: 16),
+
+              // Full Name
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Full Name'),
                 validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
+
+              // Phone (with live formatting)
               TextFormField(
                 controller: _phoneController,
-                decoration:
-                    const InputDecoration(labelText: 'Phone Number (required)'),
+                decoration: const InputDecoration(labelText: 'Phone Number'),
                 keyboardType: TextInputType.phone,
                 inputFormatters: [PhoneFormatter()],
                 validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
               const SizedBox(height: 16),
+
+              // Email with proper format validation
               TextFormField(
                 controller: _emailController,
                 decoration: const InputDecoration(labelText: 'Email'),
                 keyboardType: TextInputType.emailAddress,
-                validator: (v) => v!.isEmpty ? 'Required' : null,
+                validator: (v) {
+                  if (v == null || v.isEmpty) return 'Required';
+                  if (!_emailRegex.hasMatch(v))
+                    return 'Please enter a valid email';
+                  return null;
+                },
               ),
               const SizedBox(height: 16),
+
+              // Password
               TextFormField(
                 controller: _passwordController,
                 decoration: const InputDecoration(labelText: 'Password'),
@@ -216,6 +201,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     v!.length < 6 ? 'At least 6 characters' : null,
               ),
               const SizedBox(height: 16),
+
+              // Confirm Password
               TextFormField(
                 controller: _confirmPasswordController,
                 decoration:
@@ -226,9 +213,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     : null,
               ),
               const SizedBox(height: 32),
+
               if (_errorMessage != null)
                 Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+
               const SizedBox(height: 16),
+
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(

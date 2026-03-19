@@ -1,8 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:table_calendar/table_calendar.dart';
+
+import '../core/models/booking_model.dart';
+import '../core/services/firestore_service.dart';
+import '../Providers/auth_provider.dart';
 
 class BookingScreen extends StatefulWidget {
   final List<Map<String, dynamic>> selectedServices;
@@ -31,6 +35,8 @@ class _BookingScreenState extends State<BookingScreen> {
   late Set<DateTime> _availableDays;
   List<Map<String, dynamic>> _availableSlots = [];
   bool _loadingSlots = false;
+
+  final FirestoreService _firestore = FirestoreService();
 
   double get _totalPrice =>
       widget.selectedServices.fold<double>(
@@ -80,8 +86,7 @@ class _BookingScreenState extends State<BookingScreen> {
           final data = doc.data();
           return {
             'id': doc.id,
-            'name':
-                data['displayName'] ??
+            'name': data['displayName'] ??
                 data['email']?.split('@')[0] ??
                 'Employee',
           };
@@ -113,19 +118,18 @@ class _BookingScreenState extends State<BookingScreen> {
               .doc(dateStr)
               .get()
               .then((doc) {
-                if (doc.exists &&
-                    (doc.data()?['timeSlots'] as List<dynamic>?)?.isNotEmpty ==
-                        true) {
-                  if (mounted) {
-                    setState(() {
-                      _availableDays.add(date);
-                    });
-                  }
-                }
-              })
-              .catchError((e) {
-                debugPrint('Error checking $employeeId / $dateStr: $e');
-              }),
+            if (doc.exists &&
+                (doc.data()?['timeSlots'] as List<dynamic>?)?.isNotEmpty ==
+                    true) {
+              if (mounted) {
+                setState(() {
+                  _availableDays.add(date);
+                });
+              }
+            }
+          }).catchError((e) {
+            debugPrint('Error checking $employeeId / $dateStr: $e');
+          }),
         );
       }
     }
@@ -158,8 +162,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
         if (doc.exists) {
           final data = doc.data()!;
-          final timeSlots =
-              (data['timeSlots'] as List<dynamic>?)
+          final timeSlots = (data['timeSlots'] as List<dynamic>?)
                   ?.cast<String>()
                   .where((s) => s.isNotEmpty)
                   .toList() ??
@@ -180,9 +183,8 @@ class _BookingScreenState extends State<BookingScreen> {
                 .where((t) => t.isNotEmpty)
                 .toSet();
 
-            final freeSlots = timeSlots
-                .where((slot) => !bookedTimes.contains(slot))
-                .toList();
+            final freeSlots =
+                timeSlots.where((slot) => !bookedTimes.contains(slot)).toList();
 
             if (freeSlots.isNotEmpty) {
               slots.add({
@@ -225,9 +227,8 @@ class _BookingScreenState extends State<BookingScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     if (_selectedDay == null) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Please select a date')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Please select a date')));
       return;
     }
 
@@ -265,31 +266,30 @@ class _BookingScreenState extends State<BookingScreen> {
       assignedDetailerId = _availableSlots.first['employeeId'] as String?;
     }
 
+    final booking = BookingModel(
+      id: '',
+      customerId: context.read<AuthProvider>().user!.uid,
+      date: _selectedDay!,
+      cars: cars,
+      services: widget.selectedServices,
+      totalPrice: _totalPrice,
+      assignedDetailerId: assignedDetailerId,
+      address: _addressController.text.trim(),
+      notes: _notesController.text.trim(),
+    );
+
     try {
-      await FirebaseFirestore.instance.collection('bookings').add({
-        'customerId': FirebaseAuth.instance.currentUser!.uid,
-        'services': widget.selectedServices,
-        'totalPrice': _totalPrice,
-        'date': Timestamp.fromDate(_selectedDay!),
-        'cars': cars,
-        'assignedDetailerId': assignedDetailerId,
-        'address': _addressController.text.trim(),
-        'notes': _notesController.text.trim(),
-        'createdAt': FieldValue.serverTimestamp(),
-        'status': 'pending',
-      });
+      await _firestore.createBooking(booking);
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Booking confirmed!')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Booking confirmed!')));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to create booking: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to create booking: $e')));
       }
     }
   }
@@ -501,20 +501,18 @@ class _BookingScreenState extends State<BookingScreen> {
                                           emp['employeeName'] as String;
                                       return (emp['slots'] as List<String>)
                                           .where((slot) {
-                                            final slotTime = slot
-                                                .split(' – ')[0]
-                                                .trim();
-                                            return !usedTimes.contains(
-                                              slotTime,
-                                            );
-                                          })
-                                          .map((slot) {
-                                            final uniqueValue = '$empId||$slot';
-                                            return DropdownMenuItem<String>(
-                                              value: uniqueValue,
-                                              child: Text('$empName: $slot'),
-                                            );
-                                          });
+                                        final slotTime =
+                                            slot.split(' – ')[0].trim();
+                                        return !usedTimes.contains(
+                                          slotTime,
+                                        );
+                                      }).map((slot) {
+                                        final uniqueValue = '$empId||$slot';
+                                        return DropdownMenuItem<String>(
+                                          value: uniqueValue,
+                                          child: Text('$empName: $slot'),
+                                        );
+                                      });
                                     }).toList(),
                                     onChanged: (selectedUniqueValue) {
                                       if (selectedUniqueValue == null) return;
@@ -527,9 +525,8 @@ class _BookingScreenState extends State<BookingScreen> {
                                       final empId = parts[0];
                                       final slot = parts[1];
 
-                                      final startStr = slot
-                                          .split(' – ')[0]
-                                          .trim();
+                                      final startStr =
+                                          slot.split(' – ')[0].trim();
                                       TimeOfDay? parsedTime;
 
                                       // Try 24-hour

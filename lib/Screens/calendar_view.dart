@@ -23,7 +23,7 @@ class _CalendarViewState extends State<CalendarView> {
   }
 
   Future<void> _loadAvailableSlots(DateTime day) async {
-    final formattedDate = DateFormat('yyyy-MM-DD').format(day);
+    final formattedDate = DateFormat('yyyy-MM-dd').format(day);
     final employeesSnapshot = await FirebaseFirestore.instance
         .collection('users')
         .where('role', isEqualTo: 'employee')
@@ -53,47 +53,71 @@ class _CalendarViewState extends State<CalendarView> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        TableCalendar(
-          firstDay: DateTime.now(),
-          lastDay: DateTime.now().add(const Duration(days: 90)),
-          focusedDay: _selectedDay,
-          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-          onDaySelected: (selectedDay, focusedDay) {
-            setState(() => _selectedDay = selectedDay);
-            _loadAvailableSlots(selectedDay);
-          },
-        ),
-        const SizedBox(height: 16),
-        if (_availableDetailers.isEmpty)
-          const Text('No available slots on this day')
-        else
-          Expanded(
-            child: ListView.builder(
-              itemCount: _availableDetailers.length,
-              itemBuilder: (context, index) {
-                final slot = _availableDetailers.keys.toList()[index];
-                final count = _availableDetailers[slot]!;
-                return ListTile(
-                  title: Text(slot),
-                  trailing: Text(
-                    '$count detailer${count > 1 ? 's' : ''} available',
-                  ),
-                  onTap: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Selected $slot with $count detailer${count > 1 ? 's' : ''} available',
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('My Schedule'),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          const SizedBox(height: 8),
+          TableCalendar(
+            firstDay: DateTime.now(),
+            lastDay: DateTime.now().add(const Duration(days: 90)),
+            focusedDay: _selectedDay,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() => _selectedDay = selectedDay);
+              _loadAvailableSlots(selectedDay);
+            },
+            calendarStyle: CalendarStyle(
+              todayDecoration: BoxDecoration(
+                color: Colors.blue.withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              selectedDecoration: const BoxDecoration(
+                color: Colors.blue,
+                shape: BoxShape.circle,
+              ),
             ),
           ),
-      ],
+          const SizedBox(height: 16),
+          Expanded(
+            child: _availableDetailers.isEmpty
+                ? const Center(child: Text('No available slots on this day'))
+                : ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: _availableDetailers.length,
+                    itemBuilder: (context, index) {
+                      final slot = _availableDetailers.keys.toList()[index];
+                      final count = _availableDetailers[slot]!;
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: ListTile(
+                          title: Text(slot,
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
+                          trailing: Text(
+                            '$count detailer${count > 1 ? 's' : ''} available',
+                            style: TextStyle(
+                                color: count > 0 ? Colors.green : Colors.red),
+                          ),
+                          onTap: () {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  'Selected $slot with $count detailer${count > 1 ? 's' : ''} available',
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }

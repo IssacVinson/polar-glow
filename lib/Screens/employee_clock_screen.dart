@@ -1,7 +1,10 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+
+import '../core/models/clock_event_model.dart';
+import '../core/services/firestore_service.dart';
+import '../Providers/auth_provider.dart';
 
 class EmployeeClockScreen extends StatefulWidget {
   const EmployeeClockScreen({super.key});
@@ -14,7 +17,9 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
   bool _isClockedIn = false;
   bool _isLoading = false;
   DateTime? _lastClockInTime;
-  List<Map<String, dynamic>> _recentEvents = [];
+  List<ClockEventModel> _recentEvents = [];
+
+  final FirestoreService _firestore = FirestoreService();
 
   @override
   void initState() {
@@ -27,40 +32,21 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final uid = FirebaseAuth.instance.currentUser!.uid;
-
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('clock_events')
-          .orderBy('timestamp')
-          .limitToLast(200)
-          .get();
-
-      final events = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'type': data['type'],
-          'time': (data['timestamp'] as Timestamp).toDate(),
-        };
-      }).toList();
+      final uid = context.read<AuthProvider>().user!.uid;
+      final events = await _firestore.getClockEventsFuture(uid);
 
       DateTime? openIn;
       for (var event in events) {
-        final time = event['time'] as DateTime;
-        final type = event['type'] as String;
-
-        if (type == 'in') {
-          openIn = time;
-        } else if (type == 'out' && openIn != null) {
+        if (event.type == 'in') {
+          openIn = event.timestamp;
+        } else if (event.type == 'out' && openIn != null) {
           openIn = null;
         }
       }
 
       if (mounted) {
         setState(() {
-          _recentEvents = events.reversed.toList(); // newest first
+          _recentEvents = events;
           _isClockedIn = openIn != null;
           _lastClockInTime = openIn;
           _isLoading = false;
@@ -69,21 +55,27 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to load: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to load: $e')));
       }
     }
   }
 
   Future<void> _toggleClock() async {
-    final uid = FirebaseAuth.instance.currentUser!.uid;
+    final uid = context.read<AuthProvider>().user!.uid;
     final now = DateTime.now();
     final type = _isClockedIn ? 'out' : 'in';
 
     setState(() {
       _isClockedIn = !_isClockedIn;
-      _recentEvents.insert(0, {'type': type, 'time': now});
+      _recentEvents.insert(
+        0,
+        ClockEventModel(
+            id: 'temp',
+            type: type,
+            timestamp: now,
+            date: DateFormat('yyyy-MM-dd').format(now)),
+      );
       if (type == 'in') {
         _lastClockInTime = now;
       } else {
@@ -92,60 +84,41 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
     });
 
     try {
-      final newDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(uid)
-          .collection('clock_events')
-          .add({
-            'type': type,
-            'timestamp': Timestamp.fromDate(now),
-            'date': DateFormat('yyyy-MM-dd').format(now),
-          });
-
-      _recentEvents[0]['id'] = newDoc.id;
-
+      await _firestore.addClockEvent(uid, type);
+      await _refreshClockData();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Clocked $type')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Clocked $type')));
       }
     } catch (e) {
       if (mounted) {
         setState(() {
           _isClockedIn = !_isClockedIn;
           _recentEvents.removeAt(0);
-          if (type == 'in') {
+          if (type == 'in')
             _lastClockInTime = null;
-          } else {
+          else
             _lastClockInTime = now;
-          }
         });
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed: $e')));
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed: $e')));
       }
     }
   }
 
-  Future<void> _editEventTime(
-    String docId,
-    String type,
-    DateTime currentTime,
-  ) async {
+  Future<void> _editEventTime(String docId, DateTime currentTime) async {
     final newDate = await showDatePicker(
       context: context,
       initialDate: currentTime,
       firstDate: DateTime(2000),
       lastDate: DateTime.now().add(const Duration(days: 1)),
     );
-
     if (newDate == null || !mounted) return;
 
     final newTimeOfDay = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(currentTime),
     );
-
     if (newTimeOfDay == null || !mounted) return;
 
     final newDateTime = DateTime(
@@ -156,59 +129,33 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
       newTimeOfDay.minute,
     );
 
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    final allSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('clock_events')
-        .orderBy('timestamp')
-        .get();
+    final uid = context.read<AuthProvider>().user!.uid;
 
-    final allEvents = allSnapshot.docs.map((doc) {
-      final data = doc.data();
-      return {
-        'id': doc.id,
-        'type': data['type'],
-        'time': (data['timestamp'] as Timestamp).toDate(),
-      };
-    }).toList();
-
-    if (!_validateNoOverlaps(allEvents, newDateTime, docId)) {
+    if (!_validateNoOverlaps(_recentEvents, newDateTime, docId)) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Invalid time: causes overlap or duplicate clock in'),
-          ),
+              content:
+                  Text('Invalid time: causes overlap or duplicate clock in')),
         );
       }
       return;
     }
 
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(uid)
-        .collection('clock_events')
-        .doc(docId)
-        .update({
-          'timestamp': Timestamp.fromDate(newDateTime),
-          'date': DateFormat('yyyy-MM-dd').format(newDateTime),
-        });
-
+    await _firestore.updateClockEventTimestamp(uid, docId, newDateTime);
     await _refreshClockData();
 
     if (mounted) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Event time updated')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Event time updated')));
     }
   }
 
   bool _validateNoOverlaps(
-    List<Map<String, dynamic>> events,
-    DateTime newTime,
-    String editId,
-  ) {
-    final tempEvents = events.map((e) => Map<String, dynamic>.from(e)).toList();
+      List<ClockEventModel> events, DateTime newTime, String editId) {
+    final tempEvents = events
+        .map((e) => {'id': e.id, 'type': e.type, 'time': e.timestamp})
+        .toList();
 
     bool found = false;
     for (var e in tempEvents) {
@@ -221,8 +168,7 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
     if (!found) return false;
 
     tempEvents.sort(
-      (a, b) => (a['time'] as DateTime).compareTo(b['time'] as DateTime),
-    );
+        (a, b) => (a['time'] as DateTime).compareTo(b['time'] as DateTime));
 
     DateTime? lastIn;
     for (var e in tempEvents) {
@@ -238,7 +184,6 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
         lastIn = null;
       }
     }
-
     return true;
   }
 
@@ -259,19 +204,14 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
     final now = DateTime.now();
     final todayStart = DateTime(now.year, now.month, now.day);
 
-    final todayEvents = _recentEvents.where((e) {
-      final time = e['time'] as DateTime;
-      return !time.isBefore(todayStart);
-    }).toList();
+    final todayEvents =
+        _recentEvents.where((e) => !e.timestamp.isBefore(todayStart)).toList();
 
     for (var event in todayEvents.reversed) {
-      final time = event['time'] as DateTime;
-      final type = event['type'] as String;
-
-      if (type == 'in') {
-        openIn ??= time;
-      } else if (type == 'out' && openIn != null) {
-        total += time.difference(openIn);
+      if (event.type == 'in') {
+        openIn ??= event.timestamp;
+      } else if (event.type == 'out' && openIn != null) {
+        total += event.timestamp.difference(openIn);
         openIn = null;
       }
     }
@@ -279,7 +219,6 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
     if (openIn != null) {
       total += DateTime.now().difference(openIn);
     }
-
     return total;
   }
 
@@ -298,13 +237,10 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                todayStr,
-                style: Theme.of(context).textTheme.headlineMedium,
-                textAlign: TextAlign.center,
-              ),
+              Text(todayStr,
+                  style: Theme.of(context).textTheme.headlineMedium,
+                  textAlign: TextAlign.center),
               const SizedBox(height: 32),
-
               Card(
                 elevation: 4,
                 child: Padding(
@@ -317,39 +253,34 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
                         Text(
                           _isClockedIn ? 'CLOCKED IN' : 'CLOCKED OUT',
                           style: TextStyle(
-                            fontSize: 32,
-                            fontWeight: FontWeight.bold,
-                            color: _isClockedIn ? Colors.green : Colors.red,
-                          ),
+                              fontSize: 32,
+                              fontWeight: FontWeight.bold,
+                              color: _isClockedIn ? Colors.green : Colors.red),
                         ),
                         if (_isClockedIn && _lastClockInTime != null) ...[
                           const SizedBox(height: 16),
                           Text(
-                            'Since ${DateFormat('d MMMM yyyy HH:mm:ss').format(_lastClockInTime!)}',
-                            style: Theme.of(context).textTheme.bodyLarge,
-                          ),
+                              'Since ${DateFormat('d MMMM yyyy HH:mm:ss').format(_lastClockInTime!)}',
+                              style: Theme.of(context).textTheme.bodyLarge),
                           const SizedBox(height: 8),
                           Text(
-                            'Duration: ${_formatDuration(DateTime.now().difference(_lastClockInTime!))}',
-                            style: Theme.of(context).textTheme.bodyMedium
-                                ?.copyWith(color: Colors.grey[600]),
-                          ),
+                              'Duration: ${_formatDuration(DateTime.now().difference(_lastClockInTime!))}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(color: Colors.grey[600])),
                         ],
                         const SizedBox(height: 32),
                         FilledButton.icon(
                           icon: Icon(_isClockedIn ? Icons.logout : Icons.login),
                           label: Text(_isClockedIn ? 'Clock Out' : 'Clock In'),
                           style: FilledButton.styleFrom(
-                            backgroundColor: _isClockedIn
-                                ? Colors.red
-                                : Colors.green,
+                            backgroundColor:
+                                _isClockedIn ? Colors.red : Colors.green,
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 48,
-                              vertical: 20,
-                            ),
+                                horizontal: 48, vertical: 20),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
+                                borderRadius: BorderRadius.circular(12)),
                           ),
                           onPressed: _toggleClock,
                         ),
@@ -358,22 +289,13 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 32),
-
-              Text(
-                'Today\'s Total: ${_formatDuration(currentTotal)}',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              Text("Today's Total: ${_formatDuration(currentTotal)}",
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.bold)),
               const SizedBox(height: 16),
-
-              Text(
-                'Recent Clock History',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
+              Text('Recent Clock History',
+                  style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: 12),
               Expanded(
                 child: _recentEvents.isEmpty
@@ -384,21 +306,14 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
                           final e = _recentEvents[index];
                           return ListTile(
                             leading: Icon(
-                              e['type'] == 'in' ? Icons.login : Icons.logout,
-                              color: e['type'] == 'in'
-                                  ? Colors.green
-                                  : Colors.red,
-                            ),
-                            title: Text(
-                              e['type'] == 'in' ? 'Clock In' : 'Clock Out',
-                            ),
-                            subtitle: Text(
-                              DateFormat(
-                                'd MMMM yyyy HH:mm:ss',
-                              ).format(e['time']),
-                            ),
-                            onTap: () =>
-                                _editEventTime(e['id'], e['type'], e['time']),
+                                e.type == 'in' ? Icons.login : Icons.logout,
+                                color:
+                                    e.type == 'in' ? Colors.green : Colors.red),
+                            title:
+                                Text(e.type == 'in' ? 'Clock In' : 'Clock Out'),
+                            subtitle: Text(DateFormat('d MMMM yyyy HH:mm:ss')
+                                .format(e.timestamp)),
+                            onTap: () => _editEventTime(e.id, e.timestamp),
                           );
                         },
                       ),
