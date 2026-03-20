@@ -1,0 +1,35 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Services: Customers can read pricing, only admins can edit
+    match /services/{serviceId} {
+      allow read: if true;
+      allow create, update, delete: if request.auth != null && 
+        request.auth.token.role == 'admin';
+    }
+
+    // Usernames: Anyone can check availability (needed for registration)
+    match /usernames/{username} {
+      allow read: if true;
+      allow create: if request.auth != null;
+    }
+
+    // Users: Only the owner can read/write their own profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Bookings
+    match /bookings/{bookingId} {
+      allow create: if request.auth != null;
+      allow read: if request.auth != null;
+    }
+
+    // Clock events
+    match /users/{userId}/clock_events/{eventId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
