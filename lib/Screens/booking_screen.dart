@@ -24,12 +24,12 @@ class _BookingScreenState extends State<BookingScreen> {
 
   // Per-car data
   int _numCars = 1;
-  List<TextEditingController> _vehicleControllers = []; // Color Make Model
+  List<TextEditingController> _vehicleControllers = [];
   List<TimeOfDay?> _carTimes = [];
 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
-  String? _selectedDetailerId; // last chosen
+  String? _selectedDetailerId;
 
   List<Map<String, dynamic>> _employees = [];
   late Set<DateTime> _availableDays;
@@ -56,9 +56,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _updateCarControllers(int count) {
-    for (var c in _vehicleControllers) {
-      c.dispose();
-    }
+    for (var c in _vehicleControllers) c.dispose();
 
     _vehicleControllers = List.generate(count, (_) => TextEditingController());
     _carTimes = List.generate(count, (_) => null);
@@ -68,9 +66,7 @@ class _BookingScreenState extends State<BookingScreen> {
   void dispose() {
     _addressController.dispose();
     _notesController.dispose();
-    for (var c in _vehicleControllers) {
-      c.dispose();
-    }
+    for (var c in _vehicleControllers) c.dispose();
     super.dispose();
   }
 
@@ -103,11 +99,8 @@ class _BookingScreenState extends State<BookingScreen> {
       final employeeId = emp['id'] as String;
 
       for (int i = 0; i < 60; i++) {
-        final date = DateTime(
-          now.year,
-          now.month,
-          now.day,
-        ).add(Duration(days: i));
+        final date =
+            DateTime(now.year, now.month, now.day).add(Duration(days: i));
         final dateStr = DateFormat('yyyy-MM-dd').format(date);
 
         futures.add(
@@ -119,12 +112,9 @@ class _BookingScreenState extends State<BookingScreen> {
               .get()
               .then((doc) {
             if (doc.exists &&
-                (doc.data()?['timeSlots'] as List<dynamic>?)?.isNotEmpty ==
-                    true) {
+                (doc.data()?['timeSlots'] as List?)?.isNotEmpty == true) {
               if (mounted) {
-                setState(() {
-                  _availableDays.add(date);
-                });
+                setState(() => _availableDays.add(date));
               }
             }
           }).catchError((e) {
@@ -135,9 +125,7 @@ class _BookingScreenState extends State<BookingScreen> {
     }
 
     await Future.wait(futures);
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadSlotsForDay(DateTime date) async {
@@ -162,24 +150,21 @@ class _BookingScreenState extends State<BookingScreen> {
 
         if (doc.exists) {
           final data = doc.data()!;
-          final timeSlots = (data['timeSlots'] as List<dynamic>?)
-                  ?.cast<String>()
-                  .where((s) => s.isNotEmpty)
-                  .toList() ??
-              [];
 
-          final regions =
-              (data['regions'] as List<dynamic>?)?.cast<String>() ?? [];
+          final timeSlots = List<String>.from(data['timeSlots'] ?? []);
 
           if (timeSlots.isNotEmpty) {
             final bookedSnap = await FirebaseFirestore.instance
                 .collection('bookings')
-                .where('assignedDetailerId', isEqualTo: employeeId)
+                .where('assignedEmployeeId', isEqualTo: employeeId)
                 .where('date', isEqualTo: Timestamp.fromDate(date))
                 .get();
 
             final bookedTimes = bookedSnap.docs
-                .map((b) => b['timeSlot'] as String? ?? '')
+                .map((b) {
+                  final bData = b.data(); // ← No cast needed
+                  return (bData['time'] ?? bData['timeSlot'] ?? '').toString();
+                })
                 .where((t) => t.isNotEmpty)
                 .toSet();
 
@@ -191,7 +176,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 'employeeId': employeeId,
                 'employeeName': emp['name'],
                 'slots': freeSlots,
-                'regions': regions,
+                'regions': List<String>.from(data['regions'] ?? []),
               });
             }
           }
@@ -205,7 +190,7 @@ class _BookingScreenState extends State<BookingScreen> {
         });
       }
     } catch (e) {
-      debugPrint('Error loading slots for $dateStr: $e');
+      print('Error loading slots for $dateStr: $e');
       if (mounted) {
         setState(() => _loadingSlots = false);
         ScaffoldMessenger.of(context).showSnackBar(
@@ -289,7 +274,8 @@ class _BookingScreenState extends State<BookingScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to create booking: $e')));
+          SnackBar(content: Text('Failed to create booking: $e')),
+        );
       }
     }
   }
@@ -324,22 +310,18 @@ class _BookingScreenState extends State<BookingScreen> {
                           dense: true,
                           title: Text(s['name'] ?? 'Service'),
                           trailing: Text(
-                            '\$${s['price']?.toStringAsFixed(2) ?? '0.00'}',
-                          ),
+                              '\$${s['price']?.toStringAsFixed(2) ?? '0.00'}'),
                         ),
                       ),
                       const Divider(),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Total:',
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          Text(
-                            '\$${_totalPrice.toStringAsFixed(2)}',
-                            style: const TextStyle(fontWeight: FontWeight.bold),
-                          ),
+                          const Text('Total:',
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text('\$${_totalPrice.toStringAsFixed(2)}',
+                              style:
+                                  const TextStyle(fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ],
@@ -356,21 +338,16 @@ class _BookingScreenState extends State<BookingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'How many cars?',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
+                      Text('How many cars?',
+                          style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 8),
                       DropdownButton<int>(
                         value: _numCars,
                         isExpanded: true,
                         items: List.generate(5, (i) => i + 1)
-                            .map(
-                              (n) => DropdownMenuItem(
+                            .map((n) => DropdownMenuItem(
                                 value: n,
-                                child: Text('$n car${n > 1 ? 's' : ''}'),
-                              ),
-                            )
+                                child: Text('$n car${n > 1 ? 's' : ''}')))
                             .toList(),
                         onChanged: (val) {
                           if (val != null) {
@@ -395,10 +372,8 @@ class _BookingScreenState extends State<BookingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Select Date',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
+                      Text('Select Date',
+                          style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 12),
                       TableCalendar(
                         firstDay: DateTime.now(),
@@ -424,9 +399,8 @@ class _BookingScreenState extends State<BookingScreen> {
                           ),
                           holidayTextStyle: TextStyle(color: Colors.green[900]),
                         ),
-                        holidayPredicate: (day) {
-                          return _availableDays.any((d) => isSameDay(d, day));
-                        },
+                        holidayPredicate: (day) =>
+                            _availableDays.any((d) => isSameDay(d, day)),
                       ),
                     ],
                   ),
@@ -435,43 +409,36 @@ class _BookingScreenState extends State<BookingScreen> {
 
               const SizedBox(height: 24),
 
-              // Available Times – one picker per car
+              // Available Times
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Available Times',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
+                      Text('Available Times',
+                          style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 12),
                       if (_loadingSlots)
                         const Center(child: CircularProgressIndicator())
                       else if (_selectedDay == null)
                         const Text('Select a date above')
                       else if (_availableSlots.isEmpty)
-                        const Text(
-                          'No available slots on this day',
-                          style: TextStyle(color: Colors.red),
-                        )
+                        const Text('No available slots on this day',
+                            style: TextStyle(color: Colors.red))
                       else
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: List.generate(_numCars, (carIndex) {
                             final selectedTime = _carTimes[carIndex];
-                            final selectedTimeStr = selectedTime?.format(
-                              context,
-                            );
+                            final selectedTimeStr =
+                                selectedTime?.format(context);
 
-                            // Build items, excluding already chosen times by other cars
                             final usedTimes = _carTimes
                                 .asMap()
                                 .entries
                                 .where(
-                                  (e) => e.key != carIndex && e.value != null,
-                                )
+                                    (e) => e.key != carIndex && e.value != null)
                                 .map((e) => e.value!.format(context))
                                 .toSet();
 
@@ -480,33 +447,23 @@ class _BookingScreenState extends State<BookingScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    'Car ${carIndex + 1}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
+                                  Text('Car ${carIndex + 1}',
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 8),
-
-                                  // Time picker
                                   DropdownButton<String?>(
                                     value: null,
                                     hint: Text(
-                                      'Select time for Car ${carIndex + 1}',
-                                    ),
+                                        'Select time for Car ${carIndex + 1}'),
                                     isExpanded: true,
                                     items: _availableSlots.expand((emp) {
                                       final empId = emp['employeeId'] as String;
                                       final empName =
                                           emp['employeeName'] as String;
                                       return (emp['slots'] as List<String>)
-                                          .where((slot) {
-                                        final slotTime =
-                                            slot.split(' – ')[0].trim();
-                                        return !usedTimes.contains(
-                                          slotTime,
-                                        );
-                                      }).map((slot) {
+                                          .where((slot) => !usedTimes.contains(
+                                              slot.split(' – ')[0].trim()))
+                                          .map((slot) {
                                         final uniqueValue = '$empId||$slot';
                                         return DropdownMenuItem<String>(
                                           value: uniqueValue,
@@ -516,10 +473,8 @@ class _BookingScreenState extends State<BookingScreen> {
                                     }).toList(),
                                     onChanged: (selectedUniqueValue) {
                                       if (selectedUniqueValue == null) return;
-
-                                      final parts = selectedUniqueValue.split(
-                                        '||',
-                                      );
+                                      final parts =
+                                          selectedUniqueValue.split('||');
                                       if (parts.length != 2) return;
 
                                       final empId = parts[0];
@@ -529,38 +484,29 @@ class _BookingScreenState extends State<BookingScreen> {
                                           slot.split(' – ')[0].trim();
                                       TimeOfDay? parsedTime;
 
-                                      // Try 24-hour
                                       try {
                                         final timeParts = startStr.split(':');
                                         if (timeParts.length == 2) {
                                           final hour = int.parse(timeParts[0]);
-                                          final minute = int.parse(
-                                            timeParts[1],
-                                          );
+                                          final minute =
+                                              int.parse(timeParts[1]);
                                           parsedTime = TimeOfDay(
-                                            hour: hour,
-                                            minute: minute,
-                                          );
+                                              hour: hour, minute: minute);
                                         }
                                       } catch (_) {}
 
-                                      // Fallback 12-hour AM/PM
                                       if (parsedTime == null) {
                                         try {
                                           final format = DateFormat('h:mm a');
                                           final dt = format.parse(startStr);
-                                          parsedTime = TimeOfDay.fromDateTime(
-                                            dt,
-                                          );
+                                          parsedTime =
+                                              TimeOfDay.fromDateTime(dt);
                                         } catch (_) {
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
+                                          ScaffoldMessenger.of(context)
+                                              .showSnackBar(
                                             SnackBar(
-                                              content: Text(
-                                                'Cannot parse time: $startStr',
-                                              ),
-                                            ),
+                                                content: Text(
+                                                    'Cannot parse time: $startStr')),
                                           );
                                           return;
                                         }
@@ -572,19 +518,13 @@ class _BookingScreenState extends State<BookingScreen> {
                                       });
                                     },
                                   ),
-
-                                  // Show selected time
                                   if (selectedTimeStr != null) ...[
                                     const SizedBox(height: 8),
-                                    Text(
-                                      'Selected: $selectedTimeStr',
-                                      style: TextStyle(
-                                        color: colorScheme.primary,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
+                                    Text('Selected: $selectedTimeStr',
+                                        style: TextStyle(
+                                            color: colorScheme.primary,
+                                            fontWeight: FontWeight.w500)),
                                   ],
-
                                   const SizedBox(height: 16),
                                 ],
                               ),
@@ -598,7 +538,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
               const SizedBox(height: 24),
 
-              // Vehicle info per car – Color + Make + Model on one line
+              // Vehicle info per car
               ...List.generate(_numCars, (index) {
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -607,10 +547,8 @@ class _BookingScreenState extends State<BookingScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Car ${index + 1} Details',
-                          style: Theme.of(context).textTheme.titleMedium,
-                        ),
+                        Text('Car ${index + 1} Details',
+                            style: Theme.of(context).textTheme.titleMedium),
                         const SizedBox(height: 12),
                         TextFormField(
                           controller: _vehicleControllers[index],
@@ -657,13 +595,10 @@ class _BookingScreenState extends State<BookingScreen> {
                 width: double.infinity,
                 child: FilledButton.icon(
                   icon: const Icon(Icons.check_circle),
-                  label: const Text(
-                    'Confirm Booking',
-                    style: TextStyle(fontSize: 18),
-                  ),
+                  label: const Text('Confirm Booking',
+                      style: TextStyle(fontSize: 18)),
                   style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                  ),
+                      padding: const EdgeInsets.symmetric(vertical: 16)),
                   onPressed: _submitBooking,
                 ),
               ),

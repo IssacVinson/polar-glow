@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
+import 'admin_manage_bookings_screen.dart';
 import 'user_promotion_screen.dart'; // Promote Accounts
 import 'admin_employee_list_screen.dart'; // Track Employees
-import 'admin_schedule_calendar_screen.dart'; // Overall Schedule
-import 'admin_services_screen.dart'; // ← NEW: Manage Services
+import 'admin_schedule_calendar_screen.dart'; // Overall Schedule + Manage Bookings
+import 'admin_services_screen.dart'; // Manage Services
+import 'admin_payroll_overview_screen.dart'; // ← NEW: Payroll Overview
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -111,14 +112,22 @@ class AdminDashboard extends StatelessWidget {
                       title: 'Manage Bookings',
                       subtitle: 'Assign, edit, cancel',
                       color: Colors.amber.shade700,
-                      onTap: () => _showComingSoon(context, 'Manage Bookings'),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const AdminManageBookingsScreen()),
+                      ),
                     ),
                     _TaskCard(
                       icon: Icons.payments_rounded,
                       title: 'Payroll Overview',
                       subtitle: 'Hours, earnings, payouts',
                       color: Colors.cyan,
-                      onTap: () => _showComingSoon(context, 'Payroll Overview'),
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const AdminPayrollOverviewScreen()),
+                      ),
                     ),
                   ],
                 ),
@@ -135,12 +144,10 @@ class AdminDashboard extends StatelessWidget {
     try {
       await FirebaseAuth.instance.signOut();
       if (!context.mounted) return;
-
       messenger.showSnackBar(
         const SnackBar(
-          content: Text('Signed out successfully'),
-          behavior: SnackBarBehavior.floating,
-        ),
+            content: Text('Signed out successfully'),
+            behavior: SnackBarBehavior.floating),
       );
     } catch (e) {
       if (!context.mounted) return;
@@ -152,16 +159,6 @@ class AdminDashboard extends StatelessWidget {
         ),
       );
     }
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$feature – coming soon'),
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
   }
 }
 

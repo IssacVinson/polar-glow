@@ -3,9 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 
 class AdminScheduleCalendarScreen extends StatefulWidget {
-  const AdminScheduleCalendarScreen({super.key, this.employeeId});
+  const AdminScheduleCalendarScreen({
+    super.key,
+    this.employeeId,
+    this.showAppBar = true,
+  });
 
-  final String? employeeId; // null for overall, specific ID for per-employee
+  final String? employeeId;
+  final bool showAppBar; // false = clean mode for tabs
 
   @override
   State<AdminScheduleCalendarScreen> createState() =>
@@ -17,8 +22,7 @@ class _AdminScheduleCalendarScreenState
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  Map<DateTime, List<dynamic>> _events =
-      {}; // date → list of bookings/availability
+  Map<DateTime, List<dynamic>> _events = {};
 
   @override
   void initState() {
@@ -48,59 +52,53 @@ class _AdminScheduleCalendarScreenState
         if (widget.employeeId == null ||
             data['assignedEmployeeId'] == widget.employeeId) {
           events.update(
-            dayKey,
-            (list) => list..add({'type': 'booking', 'data': data}),
-            ifAbsent: () => [
-              {'type': 'booking', 'data': data},
-            ],
-          );
+              dayKey, (list) => list..add({'type': 'booking', 'data': data}),
+              ifAbsent: () => [
+                    {'type': 'booking', 'data': data}
+                  ]);
         }
       }
 
-      // Add availability (per employee or all)
       final employeesSnapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('role', isEqualTo: 'employee')
           .get();
 
       for (var empDoc in employeesSnapshot.docs) {
-        if (widget.employeeId != null && empDoc.id != widget.employeeId) {
+        if (widget.employeeId != null && empDoc.id != widget.employeeId)
           continue;
-        }
 
-        final availabilitySnapshot = await empDoc.reference
-            .collection('availability')
-            .get();
+        final availabilitySnapshot =
+            await empDoc.reference.collection('availability').get();
 
         for (var availDoc in availabilitySnapshot.docs) {
-          final date = DateTime.parse(availDoc.id); // id = 'yyyy-MM-dd'
+          final date = DateTime.parse(availDoc.id);
           if (date.isAfter(start) && date.isBefore(end)) {
             final data = availDoc.data();
             events.update(
-              date,
-              (list) => list
-                ..add({
-                  'type': 'availability',
-                  'data': data,
-                  'employeeId': empDoc.id,
-                }),
-              ifAbsent: () => [
-                {'type': 'availability', 'data': data, 'employeeId': empDoc.id},
-              ],
-            );
+                date,
+                (list) => list
+                  ..add({
+                    'type': 'availability',
+                    'data': data,
+                    'employeeId': empDoc.id
+                  }),
+                ifAbsent: () => [
+                      {
+                        'type': 'availability',
+                        'data': data,
+                        'employeeId': empDoc.id
+                      }
+                    ]);
           }
         }
       }
 
-      if (mounted) {
-        setState(() => _events = events);
-      }
+      if (mounted) setState(() => _events = events);
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Failed to load: $e')));
-      }
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Failed to load: $e')));
     }
   }
 
@@ -113,70 +111,68 @@ class _AdminScheduleCalendarScreenState
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.employeeId == null ? 'Overall Schedule' : 'Employee Schedule',
-        ),
-        centerTitle: true,
-      ),
-      body: Column(
-        children: [
-          Card(
-            margin: const EdgeInsets.all(16),
-            child: TableCalendar(
-              firstDay: DateTime.now(),
-              lastDay: DateTime.now().add(const Duration(days: 90)),
-              focusedDay: _focusedDay,
-              selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-              onDaySelected: (selectedDay, focusedDay) {
-                setState(() {
-                  _selectedDay = selectedDay;
-                  _focusedDay = focusedDay;
-                });
-              },
-              eventLoader: _getEventsForDay,
-              calendarStyle: CalendarStyle(
-                weekendTextStyle: TextStyle(color: colorScheme.error),
-                todayDecoration: BoxDecoration(
+    final body = Column(
+      children: [
+        Card(
+          margin: const EdgeInsets.all(16),
+          child: TableCalendar(
+            firstDay: DateTime.now(),
+            lastDay: DateTime.now().add(const Duration(days: 90)),
+            focusedDay: _focusedDay,
+            selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+            onDaySelected: (selectedDay, focusedDay) {
+              setState(() {
+                _selectedDay = selectedDay;
+                _focusedDay = focusedDay;
+              });
+            },
+            eventLoader: _getEventsForDay,
+            calendarStyle: CalendarStyle(
+              weekendTextStyle: TextStyle(color: colorScheme.error),
+              todayDecoration: BoxDecoration(
                   color: colorScheme.primary.withOpacity(0.3),
-                  shape: BoxShape.circle,
-                ),
-                selectedDecoration: BoxDecoration(
-                  color: colorScheme.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
+                  shape: BoxShape.circle),
+              selectedDecoration: BoxDecoration(
+                  color: colorScheme.primary, shape: BoxShape.circle),
             ),
           ),
-
-          if (_selectedDay != null) ...[
-            Expanded(
-              child: ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                itemCount: _getEventsForDay(_selectedDay!).length,
-                itemBuilder: (context, index) {
-                  final event = _getEventsForDay(_selectedDay!)[index];
-                  if (event['type'] == 'booking') {
-                    final data = event['data'];
-                    return ListTile(
-                      title: Text('Booking at ${data['time']}'),
-                      subtitle: Text('Customer: ${data['customerEmail']}'),
-                    );
-                  } else if (event['type'] == 'availability') {
-                    final data = event['data'];
-                    return ListTile(
+        ),
+        if (_selectedDay != null)
+          Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              itemCount: _getEventsForDay(_selectedDay!).length,
+              itemBuilder: (context, index) {
+                final event = _getEventsForDay(_selectedDay!)[index];
+                if (event['type'] == 'booking') {
+                  final data = event['data'];
+                  return ListTile(
+                      title: Text('Booking at ${data['time'] ?? 'N/A'}'),
+                      subtitle: Text(
+                          'Customer: ${data['customerEmail'] ?? data['customerId'] ?? 'Unknown'}'));
+                } else if (event['type'] == 'availability') {
+                  final data = event['data'];
+                  return ListTile(
                       title: Text('Availability'),
-                      subtitle: Text('Slots: ${data['timeSlots'].join(', ')}'),
-                    );
-                  }
-                  return const SizedBox.shrink();
-                },
-              ),
+                      subtitle: Text(
+                          'Slots: ${data['timeSlots']?.join(', ') ?? 'None'}'));
+                }
+                return const SizedBox.shrink();
+              },
             ),
-          ],
-        ],
-      ),
+          ),
+      ],
+    );
+
+    if (!widget.showAppBar) return body;
+
+    return Scaffold(
+      appBar: AppBar(
+          title: Text(widget.employeeId == null
+              ? 'Overall Schedule'
+              : 'Employee Schedule'),
+          centerTitle: true),
+      body: body,
     );
   }
 }
