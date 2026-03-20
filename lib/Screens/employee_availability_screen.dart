@@ -306,7 +306,7 @@ class _EmployeeAvailabilityScreenState
       final bookingSnap = await FirebaseFirestore.instance
           .collection('bookings')
           .where('assignedEmployeeId', isEqualTo: userId)
-          .where('date', isEqualTo: dateStr)
+          .where('date', isEqualTo: Timestamp.fromDate(date))
           .limit(1)
           .get();
 

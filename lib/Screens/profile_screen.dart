@@ -1,10 +1,7 @@
-import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:image_picker/image_picker.dart';
 
 /// Formats phone as (907) 518-4614 while typing
 class PhoneFormatter extends TextInputFormatter {
@@ -45,14 +42,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
 
+  // Password change fields
+  final _currentPasswordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+
   bool _isLoading = false;
   String? _errorMessage;
   String? _usernameError;
-  Uint8List? _imageBytes;
-  String? _currentPhotoURL;
   String? _originalUsername;
 
-  final ImagePicker _picker = ImagePicker();
+  // Proper email validation
+  final _emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
 
   @override
   void initState() {
@@ -72,25 +73,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _originalUsername = data['username'];
         _nameController.text = data['displayName'] ?? '';
         _phoneController.text = data['phoneNumber'] ?? '';
-        _currentPhotoURL = data['photoURL'];
       });
     }
-  }
-
-  Future<void> _pickImage() async {
-    final picked = await _picker.pickImage(source: ImageSource.gallery);
-    if (picked == null) return;
-    final bytes = await picked.readAsBytes();
-    setState(() => _imageBytes = bytes);
-  }
-
-  Future<String?> _uploadNewPhoto(String uid) async {
-    if (_imageBytes == null) return _currentPhotoURL;
-
-    final ref =
-        FirebaseStorage.instance.ref().child('profile_pictures/$uid.jpg');
-    await ref.putData(_imageBytes!);
-    return await ref.getDownloadURL();
   }
 
   Future<bool> _isUsernameAvailable(String username) async {
@@ -100,13 +84,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .doc(username.toLowerCase())
         .get();
     return !doc.exists;
-  }
-
-  // Clean getter to fix the type error
-  ImageProvider<Object>? get backgroundImage {
-    if (_imageBytes != null) return MemoryImage(_imageBytes!);
-    if (_currentPhotoURL != null) return NetworkImage(_currentPhotoURL!);
-    return null;
   }
 
   Future<void> _saveProfile() async {
@@ -128,15 +105,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final uid = FirebaseAuth.instance.currentUser!.uid;
-      final newPhotoURL = await _uploadNewPhoto(uid);
 
       await FirebaseFirestore.instance.collection('users').doc(uid).update({
         'username': newUsername,
         'displayName': _nameController.text.trim(),
         'phoneNumber': _phoneController.text.trim(),
-        'photoURL': newPhotoURL,
       });
 
+      // Update usernames collection if username changed
       if (newUsername != _originalUsername?.toLowerCase() &&
           _originalUsername != null) {
         await FirebaseFirestore.instance
@@ -155,15 +131,87 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile updated successfully!')),
+          const SnackBar(content: Text('✅ Profile updated successfully!')),
         );
-        Navigator.pop(context);
       }
     } catch (e) {
       setState(() => _errorMessage = e.toString());
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _updatePassword() async {
+    final currentPass = _currentPasswordController.text.trim();
+    final newPass = _newPasswordController.text.trim();
+    final confirmPass = _confirmPasswordController.text.trim();
+
+    if (currentPass.isEmpty || newPass.isEmpty || confirmPass.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill all password fields')),
+      );
+      return;
+    }
+
+    if (newPass.length < 6) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('New password must be at least 6 characters')),
+      );
+      return;
+    }
+
+    if (newPass != confirmPass) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('New passwords do not match')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Re-authenticate user (required by Firebase for security)
+      final credential = EmailAuthProvider.credential(
+        email: FirebaseAuth.instance.currentUser!.email!,
+        password: currentPass,
+      );
+
+      await FirebaseAuth.instance.currentUser!
+          .reauthenticateWithCredential(credential);
+
+      await FirebaseAuth.instance.currentUser!.updatePassword(newPass);
+
+      // Clear fields
+      _currentPasswordController.clear();
+      _newPasswordController.clear();
+      _confirmPasswordController.clear();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Password updated successfully!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to update password: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _nameController.dispose();
+    _phoneController.dispose();
+    _currentPasswordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 
   @override
@@ -175,22 +223,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Profile picture
-              GestureDetector(
-                onTap: _pickImage,
-                child: CircleAvatar(
-                  radius: 70,
-                  backgroundImage: backgroundImage,
-                  child: (backgroundImage == null)
-                      ? const Icon(Icons.add_a_photo, size: 50)
-                      : null,
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text('Tap to change profile picture'),
-
-              const SizedBox(height: 32),
+              const SizedBox(height: 20),
 
               // Username
               TextFormField(
@@ -213,6 +248,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Full Name
               TextFormField(
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Full Name'),
@@ -220,6 +256,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Phone Number
               TextFormField(
                 controller: _phoneController,
                 decoration: const InputDecoration(labelText: 'Phone Number'),
@@ -229,12 +266,58 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 16),
 
+              // Email (read-only)
               TextFormField(
                 initialValue: FirebaseAuth.instance.currentUser?.email,
                 decoration:
                     const InputDecoration(labelText: 'Email (cannot change)'),
                 enabled: false,
               ),
+              const SizedBox(height: 32),
+
+              // ==================== CHANGE PASSWORD SECTION ====================
+              const Text(
+                'Change Password',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 12),
+
+              TextFormField(
+                controller: _currentPasswordController,
+                decoration:
+                    const InputDecoration(labelText: 'Current Password'),
+                obscureText: true,
+              ),
+              const SizedBox(height: 12),
+
+              TextFormField(
+                controller: _newPasswordController,
+                decoration: const InputDecoration(labelText: 'New Password'),
+                obscureText: true,
+              ),
+              const SizedBox(height: 12),
+
+              TextFormField(
+                controller: _confirmPasswordController,
+                decoration:
+                    const InputDecoration(labelText: 'Confirm New Password'),
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _updatePassword,
+                  style:
+                      ElevatedButton.styleFrom(backgroundColor: Colors.orange),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text('Update Password'),
+                ),
+              ),
+              // =================================================================
+
               const SizedBox(height: 32),
 
               if (_errorMessage != null)
@@ -248,7 +331,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   onPressed: _isLoading ? null : _saveProfile,
                   child: _isLoading
                       ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Save Changes'),
+                      : const Text('Save Profile Changes'),
                 ),
               ),
             ],

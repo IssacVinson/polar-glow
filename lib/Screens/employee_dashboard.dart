@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../Providers/auth_provider.dart';
 import 'employee_clock_screen.dart';
 import 'calendar_view.dart';
+import 'admin_hours_pay_screen.dart';
+import 'profile_screen.dart'; // ← NEW import for real Profile screen
 
 class EmployeeDashboard extends StatelessWidget {
   const EmployeeDashboard({super.key});
@@ -13,6 +15,7 @@ class EmployeeDashboard extends StatelessWidget {
     return Consumer<AuthProvider>(
       builder: (context, auth, child) {
         final userName = auth.appUser?.displayName ?? 'Team Member';
+        final currentUserId = auth.user!.uid;
 
         return Scaffold(
           appBar: AppBar(
@@ -44,7 +47,7 @@ class EmployeeDashboard extends StatelessWidget {
                 ),
                 const SizedBox(height: 32),
 
-                // Big Clock In/Out Card
+                // Clock In/Out Card
                 Card(
                   elevation: 6,
                   color: Colors.blueGrey[800],
@@ -94,25 +97,22 @@ class EmployeeDashboard extends StatelessWidget {
                             MaterialPageRoute(
                                 builder: (_) => const CalendarView()));
                       }),
-                      _buildCard(context, Icons.beach_access, 'Request PTO',
-                          Colors.orange, () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('PTO Request screen coming soon')),
-                        );
-                      }),
                       _buildCard(context, Icons.attach_money, 'Hours & Pay',
                           Colors.green, () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Hours & Pay screen coming soon')),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                AdminHoursPayScreen(employeeId: currentUserId),
+                          ),
                         );
                       }),
                       _buildCard(context, Icons.person_outline, 'Profile',
                           Colors.purple, () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                              content: Text('Profile screen coming soon')),
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ProfileScreen()),
                         );
                       }),
                     ],

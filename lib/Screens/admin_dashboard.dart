@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import 'admin_manage_bookings_screen.dart';
-import 'user_promotion_screen.dart'; // Promote Accounts
+import 'admin_promotion_screen.dart.dart'; // Promote Accounts
 import 'admin_employee_list_screen.dart'; // Track Employees
 import 'admin_schedule_calendar_screen.dart'; // Overall Schedule + Manage Bookings
 import 'admin_services_screen.dart'; // Manage Services
-import 'admin_payroll_overview_screen.dart'; // ← NEW: Payroll Overview
+import 'admin_payroll_overview_screen.dart'; // Payroll Overview
+import 'profile_screen.dart'; // ← NEW: Profile screen (same one employees use)
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -127,6 +129,18 @@ class AdminDashboard extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                             builder: (_) => const AdminPayrollOverviewScreen()),
+                      ),
+                    ),
+                    // ==================== NEW: PROFILE CARD ====================
+                    _TaskCard(
+                      icon: Icons.person_outline_rounded,
+                      title: 'My Profile',
+                      subtitle: 'Edit name, phone & password',
+                      color: Colors.purple,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ProfileScreen()),
                       ),
                     ),
                   ],

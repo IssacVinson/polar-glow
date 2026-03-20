@@ -26,6 +26,7 @@ class _BookingScreenState extends State<BookingScreen> {
   int _numCars = 1;
   List<TextEditingController> _vehicleControllers = [];
   List<TimeOfDay?> _carTimes = [];
+  List<String?> _selectedFullSlots = []; // tracks full slot string for removal
 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
@@ -60,6 +61,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
     _vehicleControllers = List.generate(count, (_) => TextEditingController());
     _carTimes = List.generate(count, (_) => null);
+    _selectedFullSlots = List.generate(count, (_) => null);
   }
 
   @override
@@ -162,7 +164,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
             final bookedTimes = bookedSnap.docs
                 .map((b) {
-                  final bData = b.data(); // ← No cast needed
+                  final bData = b.data();
                   return (bData['time'] ?? bData['timeSlot'] ?? '').toString();
                 })
                 .where((t) => t.isNotEmpty)
@@ -219,8 +221,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
     if (_carTimes.any((t) => t == null)) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select a time for each car')),
-      );
+          const SnackBar(content: Text('Please select a time for each car')));
       return;
     }
 
@@ -230,9 +231,8 @@ class _BookingScreenState extends State<BookingScreen> {
       final time = _carTimes[i]!;
 
       if (vehicleText.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Please enter vehicle info for car ${i + 1}')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Please enter vehicle info for car ${i + 1}')));
         return;
       }
 
@@ -243,9 +243,8 @@ class _BookingScreenState extends State<BookingScreen> {
 
     if (assignedDetailerId == null) {
       if (_availableSlots.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No available detailers on this day')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('No available detailers on this day')));
         return;
       }
       assignedDetailerId = _availableSlots.first['employeeId'] as String?;
@@ -266,16 +265,32 @@ class _BookingScreenState extends State<BookingScreen> {
     try {
       await _firestore.createBooking(booking);
 
+      // Auto-remove booked slots from availability
+      if (assignedDetailerId != null && _selectedDay != null) {
+        final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDay!);
+        for (String? fullSlot in _selectedFullSlots) {
+          if (fullSlot != null && fullSlot.isNotEmpty) {
+            await FirebaseFirestore.instance
+                .collection('users')
+                .doc(assignedDetailerId)
+                .collection('availability')
+                .doc(dateStr)
+                .update({
+              'timeSlots': FieldValue.arrayRemove([fullSlot]),
+            });
+          }
+        }
+      }
+
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(const SnackBar(content: Text('Booking confirmed!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('✅ Booking confirmed!')));
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to create booking: $e')),
-        );
+            SnackBar(content: Text('Failed to create booking: $e')));
       }
     }
   }
@@ -300,10 +315,8 @@ class _BookingScreenState extends State<BookingScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Selected Services',
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
+                      Text('Selected Services',
+                          style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 12),
                       ...widget.selectedServices.map(
                         (s) => ListTile(
@@ -365,7 +378,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
               const SizedBox(height: 24),
 
-              // Calendar
+              // Modern Calendar with green dots
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -383,7 +396,27 @@ class _BookingScreenState extends State<BookingScreen> {
                             isSameDay(_selectedDay, day),
                         onDaySelected: _onDaySelected,
                         calendarFormat: CalendarFormat.month,
-                        availableGestures: AvailableGestures.all,
+                        calendarBuilders: CalendarBuilders(
+                          markerBuilder: (context, day, _) {
+                            final isAvailable =
+                                _availableDays.any((d) => isSameDay(d, day));
+                            if (isAvailable) {
+                              return Positioned(
+                                right: 6,
+                                top: 6,
+                                child: Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: Colors.green,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              );
+                            }
+                            return null;
+                          },
+                        ),
                         calendarStyle: CalendarStyle(
                           todayDecoration: BoxDecoration(
                             color: colorScheme.primary.withOpacity(0.3),
@@ -393,14 +426,7 @@ class _BookingScreenState extends State<BookingScreen> {
                             color: colorScheme.primary,
                             shape: BoxShape.circle,
                           ),
-                          holidayDecoration: BoxDecoration(
-                            color: Colors.green[100],
-                            shape: BoxShape.circle,
-                          ),
-                          holidayTextStyle: TextStyle(color: Colors.green[900]),
                         ),
-                        holidayPredicate: (day) =>
-                            _availableDays.any((d) => isSameDay(d, day)),
                       ),
                     ],
                   ),
@@ -503,17 +529,16 @@ class _BookingScreenState extends State<BookingScreen> {
                                               TimeOfDay.fromDateTime(dt);
                                         } catch (_) {
                                           ScaffoldMessenger.of(context)
-                                              .showSnackBar(
-                                            SnackBar(
-                                                content: Text(
-                                                    'Cannot parse time: $startStr')),
-                                          );
+                                              .showSnackBar(SnackBar(
+                                                  content: Text(
+                                                      'Cannot parse time: $startStr')));
                                           return;
                                         }
                                       }
 
                                       setState(() {
                                         _carTimes[carIndex] = parsedTime;
+                                        _selectedFullSlots[carIndex] = slot;
                                         _selectedDetailerId = empId;
                                       });
                                     },
@@ -568,13 +593,11 @@ class _BookingScreenState extends State<BookingScreen> {
 
               const SizedBox(height: 24),
 
-              // Shared fields
               TextFormField(
                 controller: _addressController,
                 decoration: const InputDecoration(
-                  labelText: 'Service Location / Address',
-                  border: OutlineInputBorder(),
-                ),
+                    labelText: 'Service Location / Address',
+                    border: OutlineInputBorder()),
                 validator: (v) => v!.trim().isEmpty ? 'Required' : null,
               ),
 
@@ -583,9 +606,8 @@ class _BookingScreenState extends State<BookingScreen> {
               TextFormField(
                 controller: _notesController,
                 decoration: const InputDecoration(
-                  labelText: 'Additional Notes',
-                  border: OutlineInputBorder(),
-                ),
+                    labelText: 'Additional Notes',
+                    border: OutlineInputBorder()),
                 maxLines: 3,
               ),
 
