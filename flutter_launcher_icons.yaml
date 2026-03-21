@@ -1,0 +1,8 @@
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/logo.png"
+  adaptive_icon_foreground: "assets/images/logo.png"
+  adaptive_icon_background: "#000000"   # Change to your background color if you want
+  min_sdk_android: 21
+  remove_alpha_ios: true

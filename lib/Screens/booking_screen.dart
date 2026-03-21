@@ -43,7 +43,7 @@ class _BookingScreenState extends State<BookingScreen> {
   double get _totalPrice =>
       widget.selectedServices.fold<double>(
         0.0,
-        (sum, s) => sum + (s['price'] as num),
+        (sum, s) => sum + (s['price'] as num).toDouble(),
       ) *
       _numCars;
 
@@ -58,9 +58,7 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _updateCarControllers(int count) {
-    for (var c in _vehicleControllers) {
-      c.dispose();
-    }
+    for (var c in _vehicleControllers) c.dispose();
 
     _vehicleControllers = List.generate(count, (_) => TextEditingController());
     _carTimes = List.generate(count, (_) => null);
@@ -71,9 +69,7 @@ class _BookingScreenState extends State<BookingScreen> {
   void dispose() {
     _addressController.dispose();
     _notesController.dispose();
-    for (var c in _vehicleControllers) {
-      c.dispose();
-    }
+    for (var c in _vehicleControllers) c.dispose();
     super.dispose();
   }
 
@@ -258,7 +254,7 @@ class _BookingScreenState extends State<BookingScreen> {
     final booking = BookingModel(
       id: '',
       customerId: context.read<AuthProvider>().user!.uid,
-      date: _selectedDay!, // Model now handles AKST conversion
+      date: _selectedDay!,
       cars: cars,
       services: widget.selectedServices,
       totalPrice: _totalPrice,
@@ -270,7 +266,6 @@ class _BookingScreenState extends State<BookingScreen> {
     try {
       await _firestore.createBooking(booking);
 
-      // Auto-remove booked slots from availability (using Alaska day string)
       if (assignedDetailerId != null && _selectedDay != null) {
         final dateStr = AlaskaDateUtils.toDateString(_selectedDay!);
         for (String? fullSlot in _selectedFullSlots) {
@@ -307,6 +302,7 @@ class _BookingScreenState extends State<BookingScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Book Appointment')),
       body: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
@@ -328,7 +324,7 @@ class _BookingScreenState extends State<BookingScreen> {
                           dense: true,
                           title: Text(s['name'] ?? 'Service'),
                           trailing: Text(
-                              '\$${s['price']?.toStringAsFixed(2) ?? '0.00'}'),
+                              '\$${(s['price'] as num).toDouble().toStringAsFixed(2)}'),
                         ),
                       ),
                       const Divider(),
@@ -383,7 +379,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
               const SizedBox(height: 24),
 
-              // Modern Calendar with green dots
+              // Calendar with safe height for phones
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -393,43 +389,47 @@ class _BookingScreenState extends State<BookingScreen> {
                       Text('Select Date',
                           style: Theme.of(context).textTheme.titleMedium),
                       const SizedBox(height: 12),
-                      TableCalendar(
-                        firstDay: DateTime.now(),
-                        lastDay: DateTime.now().add(const Duration(days: 365)),
-                        focusedDay: _focusedDay,
-                        selectedDayPredicate: (day) =>
-                            isSameDay(_selectedDay, day),
-                        onDaySelected: _onDaySelected,
-                        calendarFormat: CalendarFormat.month,
-                        calendarBuilders: CalendarBuilders(
-                          markerBuilder: (context, day, _) {
-                            final isAvailable =
-                                _availableDays.any((d) => isSameDay(d, day));
-                            if (isAvailable) {
-                              return Positioned(
-                                right: 6,
-                                top: 6,
-                                child: Container(
-                                  width: 8,
-                                  height: 8,
-                                  decoration: const BoxDecoration(
-                                    color: Colors.green,
-                                    shape: BoxShape.circle,
+                      SizedBox(
+                        height: 380,
+                        child: TableCalendar(
+                          firstDay: DateTime.now(),
+                          lastDay:
+                              DateTime.now().add(const Duration(days: 365)),
+                          focusedDay: _focusedDay,
+                          selectedDayPredicate: (day) =>
+                              isSameDay(_selectedDay, day),
+                          onDaySelected: _onDaySelected,
+                          calendarFormat: CalendarFormat.month,
+                          calendarBuilders: CalendarBuilders(
+                            markerBuilder: (context, day, _) {
+                              final isAvailable =
+                                  _availableDays.any((d) => isSameDay(d, day));
+                              if (isAvailable) {
+                                return Positioned(
+                                  right: 6,
+                                  top: 6,
+                                  child: Container(
+                                    width: 8,
+                                    height: 8,
+                                    decoration: const BoxDecoration(
+                                      color: Colors.green,
+                                      shape: BoxShape.circle,
+                                    ),
                                   ),
-                                ),
-                              );
-                            }
-                            return null;
-                          },
-                        ),
-                        calendarStyle: CalendarStyle(
-                          todayDecoration: BoxDecoration(
-                            color: colorScheme.primary.withOpacity(0.3),
-                            shape: BoxShape.circle,
+                                );
+                              }
+                              return null;
+                            },
                           ),
-                          selectedDecoration: BoxDecoration(
-                            color: colorScheme.primary,
-                            shape: BoxShape.circle,
+                          calendarStyle: CalendarStyle(
+                            todayDecoration: BoxDecoration(
+                              color: colorScheme.primary.withOpacity(0.3),
+                              shape: BoxShape.circle,
+                            ),
+                            selectedDecoration: BoxDecoration(
+                              color: colorScheme.primary,
+                              shape: BoxShape.circle,
+                            ),
                           ),
                         ),
                       ),
@@ -629,6 +629,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   onPressed: _submitBooking,
                 ),
               ),
+              const SizedBox(height: 40),
             ],
           ),
         ),

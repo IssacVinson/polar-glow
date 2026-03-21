@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'admin_manage_bookings_screen.dart';
-import 'admin_promotion_screen.dart.dart'; // Promote Accounts
-import 'admin_employee_list_screen.dart'; // Track Employees
-import 'admin_schedule_calendar_screen.dart'; // Overall Schedule + Manage Bookings
-import 'admin_services_screen.dart'; // Manage Services
-import 'admin_payroll_overview_screen.dart'; // Payroll Overview
-import 'profile_screen.dart'; // ← NEW: Profile screen (same one employees use)
+import 'admin_promotion_screen.dart'; // Fixed typo
+import 'admin_employee_list_screen.dart';
+import 'admin_schedule_calendar_screen.dart';
+import 'admin_services_screen.dart';
+import 'admin_payroll_overview_screen.dart';
+import 'profile_screen.dart';
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -16,6 +16,7 @@ class AdminDashboard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final isSmallScreen = MediaQuery.of(context).size.height < 700;
 
     return Scaffold(
       appBar: AppBar(
@@ -34,11 +35,11 @@ class AdminDashboard extends StatelessWidget {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 16),
+              const SizedBox(height: 8),
               Text(
                 'Admin Controls',
                 style: theme.textTheme.headlineMedium?.copyWith(
@@ -47,7 +48,7 @@ class AdminDashboard extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 6),
               Text(
                 'Manage users, schedules & more',
                 style: theme.textTheme.bodyLarge?.copyWith(
@@ -55,14 +56,15 @@ class AdminDashboard extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 24),
               Expanded(
                 child: GridView.count(
                   crossAxisCount: 2,
-                  mainAxisSpacing: 20,
-                  crossAxisSpacing: 20,
-                  childAspectRatio: 1.05,
-                  padding: const EdgeInsets.only(bottom: 24),
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio:
+                      isSmallScreen ? 0.92 : 1.05, // Dynamic for phones
+                  padding: const EdgeInsets.only(bottom: 16),
                   children: [
                     _TaskCard(
                       icon: Icons.person_add_alt_1_rounded,
@@ -131,7 +133,6 @@ class AdminDashboard extends StatelessWidget {
                             builder: (_) => const AdminPayrollOverviewScreen()),
                       ),
                     ),
-                    // ==================== NEW: PROFILE CARD ====================
                     _TaskCard(
                       icon: Icons.person_outline_rounded,
                       title: 'My Profile',
@@ -206,7 +207,7 @@ class _TaskCard extends StatelessWidget {
         splashColor: color.withOpacity(0.12),
         highlightColor: color.withOpacity(0.08),
         child: Container(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
@@ -217,8 +218,8 @@ class _TaskCard extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon, size: 48, color: color),
-              const SizedBox(height: 20),
+              Icon(icon, size: 46, color: color),
+              const SizedBox(height: 16),
               Text(
                 title,
                 style: theme.textTheme.titleMedium?.copyWith(
@@ -226,18 +227,22 @@ class _TaskCard extends StatelessWidget {
                   color: colorScheme.onSurface,
                 ),
                 textAlign: TextAlign.center,
-                maxLines: 2,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 8),
-              Text(
-                subtitle,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
+              Flexible(
+                child: Text(
+                  subtitle,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    height: 1.3,
+                  ),
+                  textAlign: TextAlign.center,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  softWrap: true,
                 ),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
               ),
             ],
           ),

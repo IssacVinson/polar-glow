@@ -48,7 +48,6 @@ class _AdminEmployeeDetailsScreenState
       final now = DateTime.now();
       final monthStart = DateTime(now.year, now.month, 1);
 
-      // Real hours this month
       final clockSnap = await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.employeeId)
@@ -73,13 +72,11 @@ class _AdminEmployeeDetailsScreenState
       }
       if (openIn != null) totalHours += now.difference(openIn);
 
-      // Real bookings completed
       final bookingsSnap = await FirebaseFirestore.instance
           .collection('bookings')
           .where('assignedEmployeeId', isEqualTo: widget.employeeId)
           .get();
 
-      // Recent activity (last 3) — simplified so it never needs an index
       final recentSnap = await FirebaseFirestore.instance
           .collection('bookings')
           .where('assignedEmployeeId', isEqualTo: widget.employeeId)
@@ -226,19 +223,19 @@ class _AdminEmployeeDetailsScreenState
     return Column(
       children: _recentBookings.map((booking) {
         final date = (booking['date'] as Timestamp).toDate();
+        final price = (booking['totalPrice'] as num? ?? 0).toDouble();
         return Card(
           margin: const EdgeInsets.only(bottom: 8),
           child: ListTile(
               title: Text('Booking on ${DateFormat('MMM d').format(date)}'),
-              subtitle: Text(
-                  'Total: \$${booking['totalPrice']?.toStringAsFixed(2) ?? '0.00'}')),
+              subtitle: Text('Total: \$${price.toStringAsFixed(2)}')),
         );
       }).toList(),
     );
   }
 }
 
-// ==================== PRODUCTS TAB (unchanged) ====================
+// ==================== PRODUCTS TAB (FIXED - NO TYPE ERRORS) ====================
 class _ProductsTab extends StatefulWidget {
   final String employeeId;
   const _ProductsTab({required this.employeeId});
@@ -397,16 +394,17 @@ class _ProductsTabState extends State<_ProductsTab> {
                     itemCount: _products.length,
                     itemBuilder: (context, i) {
                       final p = _products[i];
-                      final cost = p['cost'] as double;
-                      final usage = p['usageCount'] as int;
-                      final totalYTD = usage * cost;
+                      final cost = ((p['cost'] ?? 0) as num).toDouble();
+                      final usage = p['usageCount'] as int? ?? 0;
+                      final totalYTD = (usage * cost).toDouble();
                       final monthlyAvg = usage > 0
                           ? (totalYTD / 12).toStringAsFixed(2)
                           : '0.00';
 
                       return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
                         child: ListTile(
-                          title: Text(p['name']),
+                          title: Text(p['name'] ?? 'Unnamed Product'),
                           subtitle: Text(
                               'Used $usage times\nMonthly Avg: \$$monthlyAvg • YTD Total: \$${totalYTD.toStringAsFixed(2)}'),
                           trailing: Row(
