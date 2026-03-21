@@ -95,10 +95,11 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
         setState(() {
           _isClockedIn = !_isClockedIn;
           _recentEvents.removeAt(0);
-          if (type == 'in')
+          if (type == 'in') {
             _lastClockInTime = null;
-          else
+          } else {
             _lastClockInTime = now;
+          }
         });
         ScaffoldMessenger.of(context)
             .showSnackBar(SnackBar(content: Text('Failed: $e')));

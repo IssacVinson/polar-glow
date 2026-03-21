@@ -1,14 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
-class UserPromotionScreen extends StatefulWidget {
-  const UserPromotionScreen({super.key});
+class AdminPromotionScreen extends StatefulWidget {
+  const AdminPromotionScreen({super.key});
 
   @override
-  State<UserPromotionScreen> createState() => _UserPromotionScreenState();
+  State<AdminPromotionScreen> createState() => _UserPromotionScreenState();
 }
 
-class _UserPromotionScreenState extends State<UserPromotionScreen> {
+class _UserPromotionScreenState extends State<AdminPromotionScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
 

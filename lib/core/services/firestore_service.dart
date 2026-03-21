@@ -1,9 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:intl/intl.dart';
 import '../models/app_user.dart';
 import '../models/service_model.dart';
 import '../models/booking_model.dart';
 import '../models/clock_event_model.dart';
+import '../utils/alaska_date_utils.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -61,16 +61,23 @@ class FirestoreService {
 
   Future<void> addClockEvent(String uid, String type) async {
     final now = DateTime.now();
+    // Force Alaska day string so clock events group correctly in AKST (prevents any future shifts)
+    final alaskaDay = AlaskaDateUtils.toAlaskaDayKey(now);
+    final dateStr = AlaskaDateUtils.toDateString(alaskaDay);
+
     await _db.collection('users').doc(uid).collection('clock_events').add({
       'type': type,
       'timestamp': Timestamp.fromDate(now),
-      'date': DateFormat('yyyy-MM-dd').format(now),
+      'date': dateStr,
     });
   }
 
   Future<void> updateClockEventTimestamp(
       String uid, String docId, DateTime newTimestamp) async {
-    final dateStr = DateFormat('yyyy-MM-dd').format(newTimestamp);
+    // Force Alaska day string
+    final alaskaDay = AlaskaDateUtils.toAlaskaDayKey(newTimestamp);
+    final dateStr = AlaskaDateUtils.toDateString(alaskaDay);
+
     await _db
         .collection('users')
         .doc(uid)

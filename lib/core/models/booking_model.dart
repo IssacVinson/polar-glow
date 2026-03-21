@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../utils/alaska_date_utils.dart';
 
 class BookingModel {
   final String id;
@@ -29,7 +30,7 @@ class BookingModel {
     return BookingModel(
       id: id,
       customerId: map['customerId'] ?? '',
-      date: (map['date'] as Timestamp).toDate(),
+      date: AlaskaDateUtils.toAlaskaDayKey((map['date'] as Timestamp).toDate()),
       cars: List<Map<String, dynamic>>.from(map['cars'] ?? []),
       services: List<Map<String, dynamic>>.from(map['services'] ?? []),
       totalPrice: (map['totalPrice'] as num).toDouble(),
@@ -43,7 +44,8 @@ class BookingModel {
   Map<String, dynamic> toMap() {
     return {
       'customerId': customerId,
-      'date': Timestamp.fromDate(date),
+      'date': Timestamp.fromDate(
+          AlaskaDateUtils.toAlaskaStorageDate(date)), // Stores correct AKST day
       'cars': cars,
       'services': services,
       'totalPrice': totalPrice,

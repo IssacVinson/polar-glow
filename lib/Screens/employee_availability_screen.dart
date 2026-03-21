@@ -3,6 +3,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../core/utils/alaska_date_utils.dart';
+
 class EmployeeAvailabilityScreen extends StatefulWidget {
   const EmployeeAvailabilityScreen({super.key});
 
@@ -106,11 +108,11 @@ class _EmployeeAvailabilityScreenState
       for (int week = 0; week < _applyForWeeks; week++) {
         for (int offset = 0; offset < 7; offset++) {
           final targetDate = now.add(Duration(days: week * 7 + offset));
-          if (targetDate.isBefore(now.subtract(const Duration(days: 1))))
+          if (targetDate.isBefore(now.subtract(const Duration(days: 1)))) {
             continue;
+          }
 
-          final weekdayStr = targetDate.weekday.toString();
-          final dateStr = DateFormat('yyyy-MM-dd').format(targetDate);
+          final dateStr = AlaskaDateUtils.toDateString(targetDate);
 
           final docRef = FirebaseFirestore.instance
               .collection('users')
@@ -118,7 +120,7 @@ class _EmployeeAvailabilityScreenState
               .collection('availability')
               .doc(dateStr);
 
-          if (_selectedDaysOfWeek.contains(weekdayStr)) {
+          if (_selectedDaysOfWeek.contains(targetDate.weekday.toString())) {
             await docRef.set({
               'timeSlots': _selectedTimeSlots,
               'regions': _selectedRegions,
@@ -158,7 +160,7 @@ class _EmployeeAvailabilityScreenState
 
   Future<void> _editDay(DateTime date) async {
     final userId = FirebaseAuth.instance.currentUser!.uid;
-    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    final dateStr = AlaskaDateUtils.toDateString(date);
 
     final doc = await FirebaseFirestore.instance
         .collection('users')
@@ -294,7 +296,8 @@ class _EmployeeAvailabilityScreenState
 
     for (int i = 0; i < 30; i++) {
       final date = now.add(Duration(days: i));
-      final dateStr = DateFormat('yyyy-MM-dd').format(date);
+      final dateStr = AlaskaDateUtils.toDateString(date);
+      final storageDate = AlaskaDateUtils.toAlaskaStorageDate(date);
 
       final availSnap = await FirebaseFirestore.instance
           .collection('users')
@@ -305,8 +308,8 @@ class _EmployeeAvailabilityScreenState
 
       final bookingSnap = await FirebaseFirestore.instance
           .collection('bookings')
-          .where('assignedEmployeeId', isEqualTo: userId)
-          .where('date', isEqualTo: Timestamp.fromDate(date))
+          .where('assignedDetailerId', isEqualTo: userId)
+          .where('date', isEqualTo: Timestamp.fromDate(storageDate))
           .limit(1)
           .get();
 

@@ -6,6 +6,7 @@ import 'package:table_calendar/table_calendar.dart';
 
 import '../core/models/booking_model.dart';
 import '../core/services/firestore_service.dart';
+import '../core/utils/alaska_date_utils.dart';
 import '../Providers/auth_provider.dart';
 
 class BookingScreen extends StatefulWidget {
@@ -26,7 +27,7 @@ class _BookingScreenState extends State<BookingScreen> {
   int _numCars = 1;
   List<TextEditingController> _vehicleControllers = [];
   List<TimeOfDay?> _carTimes = [];
-  List<String?> _selectedFullSlots = []; // tracks full slot string for removal
+  List<String?> _selectedFullSlots = [];
 
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
@@ -57,7 +58,9 @@ class _BookingScreenState extends State<BookingScreen> {
   }
 
   void _updateCarControllers(int count) {
-    for (var c in _vehicleControllers) c.dispose();
+    for (var c in _vehicleControllers) {
+      c.dispose();
+    }
 
     _vehicleControllers = List.generate(count, (_) => TextEditingController());
     _carTimes = List.generate(count, (_) => null);
@@ -68,7 +71,9 @@ class _BookingScreenState extends State<BookingScreen> {
   void dispose() {
     _addressController.dispose();
     _notesController.dispose();
-    for (var c in _vehicleControllers) c.dispose();
+    for (var c in _vehicleControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -103,7 +108,7 @@ class _BookingScreenState extends State<BookingScreen> {
       for (int i = 0; i < 60; i++) {
         final date =
             DateTime(now.year, now.month, now.day).add(Duration(days: i));
-        final dateStr = DateFormat('yyyy-MM-dd').format(date);
+        final dateStr = AlaskaDateUtils.toDateString(date);
 
         futures.add(
           FirebaseFirestore.instance
@@ -136,7 +141,8 @@ class _BookingScreenState extends State<BookingScreen> {
       _availableSlots = [];
     });
 
-    final dateStr = DateFormat('yyyy-MM-dd').format(date);
+    final dateStr = AlaskaDateUtils.toDateString(date);
+    final storageDate = AlaskaDateUtils.toAlaskaStorageDate(date);
     final List<Map<String, dynamic>> slots = [];
 
     try {
@@ -158,15 +164,14 @@ class _BookingScreenState extends State<BookingScreen> {
           if (timeSlots.isNotEmpty) {
             final bookedSnap = await FirebaseFirestore.instance
                 .collection('bookings')
-                .where('assignedEmployeeId', isEqualTo: employeeId)
-                .where('date', isEqualTo: Timestamp.fromDate(date))
+                .where('assignedDetailerId', isEqualTo: employeeId)
+                .where('date', isEqualTo: Timestamp.fromDate(storageDate))
                 .get();
 
             final bookedTimes = bookedSnap.docs
-                .map((b) {
-                  final bData = b.data();
-                  return (bData['time'] ?? bData['timeSlot'] ?? '').toString();
-                })
+                .map((b) =>
+                    (b.data()['cars']?[0]?['time'] ?? b.data()['time'] ?? '')
+                        .toString())
                 .where((t) => t.isNotEmpty)
                 .toSet();
 
@@ -253,7 +258,7 @@ class _BookingScreenState extends State<BookingScreen> {
     final booking = BookingModel(
       id: '',
       customerId: context.read<AuthProvider>().user!.uid,
-      date: _selectedDay!,
+      date: _selectedDay!, // Model now handles AKST conversion
       cars: cars,
       services: widget.selectedServices,
       totalPrice: _totalPrice,
@@ -265,9 +270,9 @@ class _BookingScreenState extends State<BookingScreen> {
     try {
       await _firestore.createBooking(booking);
 
-      // Auto-remove booked slots from availability
+      // Auto-remove booked slots from availability (using Alaska day string)
       if (assignedDetailerId != null && _selectedDay != null) {
-        final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDay!);
+        final dateStr = AlaskaDateUtils.toDateString(_selectedDay!);
         for (String? fullSlot in _selectedFullSlots) {
           if (fullSlot != null && fullSlot.isNotEmpty) {
             await FirebaseFirestore.instance

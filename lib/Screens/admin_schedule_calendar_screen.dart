@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 
+import '../core/utils/alaska_date_utils.dart';
+
 class AdminScheduleCalendarScreen extends StatefulWidget {
   const AdminScheduleCalendarScreen({
     super.key,
@@ -23,7 +25,6 @@ class _AdminScheduleCalendarScreenState
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  // Bookings and availability stored by consistent UTC day key
   Map<DateTime, List<Map<String, dynamic>>> _bookings = {};
   Map<DateTime, List<String>> _availabilitySlots = {};
 
@@ -34,14 +35,12 @@ class _AdminScheduleCalendarScreenState
     _loadEvents();
   }
 
-  // Create a consistent UTC day key (midnight) to prevent timezone shifts
-  DateTime _toDayKey(DateTime date) {
-    return DateTime.utc(date.year, date.month, date.day);
-  }
-
   Future<void> _loadEvents() async {
-    final start = _focusedDay.subtract(const Duration(days: 30));
-    final end = _focusedDay.add(const Duration(days: 30));
+    final startDate = _focusedDay.subtract(const Duration(days: 30));
+    final endDate = _focusedDay.add(const Duration(days: 30));
+
+    final startStorage = AlaskaDateUtils.toAlaskaStorageDate(startDate);
+    final endStorage = AlaskaDateUtils.toAlaskaStorageDate(endDate);
 
     final Map<DateTime, List<Map<String, dynamic>>> newBookings = {};
     final Map<DateTime, List<String>> newAvailability = {};
@@ -50,15 +49,16 @@ class _AdminScheduleCalendarScreenState
       // Load Bookings
       final bookingsSnapshot = await FirebaseFirestore.instance
           .collection('bookings')
-          .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(end))
+          .where('date',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startStorage))
+          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endStorage))
           .get();
 
       for (var doc in bookingsSnapshot.docs) {
         final data = doc.data();
         final timestamp = data['date'] as Timestamp;
         final date = timestamp.toDate();
-        final dayKey = _toDayKey(date); // ← FIXED: consistent UTC key
+        final dayKey = AlaskaDateUtils.toAlaskaDayKey(date);
 
         if (widget.employeeId == null ||
             data['assignedDetailerId'] == widget.employeeId) {
@@ -77,28 +77,31 @@ class _AdminScheduleCalendarScreenState
           .get();
 
       for (var empDoc in employeesSnapshot.docs) {
-        if (widget.employeeId != null && empDoc.id != widget.employeeId)
+        if (widget.employeeId != null && empDoc.id != widget.employeeId) {
           continue;
+        }
 
         final availabilitySnapshot =
             await empDoc.reference.collection('availability').get();
 
         for (var availDoc in availabilitySnapshot.docs) {
           final dateStr = availDoc.id;
-          final date = DateTime.parse(dateStr);
-          if (date.isBefore(start) || date.isAfter(end)) continue;
+          try {
+            final date = DateTime.parse(dateStr);
+            if (date.isBefore(startDate) || date.isAfter(endDate)) continue;
 
-          final data = availDoc.data();
-          final slots = List<String>.from(data['timeSlots'] ?? []);
+            final data = availDoc.data();
+            final slots = List<String>.from(data['timeSlots'] ?? []);
 
-          if (slots.isNotEmpty) {
-            final dayKey = _toDayKey(date);
-            newAvailability.update(
-              dayKey,
-              (list) => list..addAll(slots),
-              ifAbsent: () => List.from(slots),
-            );
-          }
+            if (slots.isNotEmpty) {
+              final dayKey = DateTime.parse(dateStr);
+              newAvailability.update(
+                dayKey,
+                (list) => list..addAll(slots),
+                ifAbsent: () => List.from(slots),
+              );
+            }
+          } catch (_) {}
         }
       }
 
@@ -116,19 +119,42 @@ class _AdminScheduleCalendarScreenState
     }
   }
 
+  // ====================== SORTED AVAILABILITY ======================
+  List<String> _getAvailabilityForDay(DateTime day) {
+    final dayKey = DateTime(day.year, day.month, day.day);
+    final rawSlots = _availabilitySlots[dayKey] ?? [];
+
+    // Sort by start time (earliest → latest)
+    final sorted = List<String>.from(rawSlots);
+    sorted.sort((a, b) {
+      final minutesA = _parseStartMinutes(a);
+      final minutesB = _parseStartMinutes(b);
+      return minutesA.compareTo(minutesB);
+    });
+
+    return sorted;
+  }
+
+  int _parseStartMinutes(String slot) {
+    try {
+      final parts = slot.split(' – ');
+      final startStr = parts[0].trim();
+      final format = DateFormat('h:mm a');
+      final dt = format.parse(startStr);
+      return dt.hour * 60 + dt.minute;
+    } catch (_) {
+      return 0; // fallback
+    }
+  }
+
   int _getBookingCount(DateTime day) {
-    final dayKey = _toDayKey(day);
+    final dayKey = DateTime(day.year, day.month, day.day);
     return _bookings[dayKey]?.length ?? 0;
   }
 
   List<Map<String, dynamic>> _getBookingsForDay(DateTime day) {
-    final dayKey = _toDayKey(day);
+    final dayKey = DateTime(day.year, day.month, day.day);
     return _bookings[dayKey] ?? [];
-  }
-
-  List<String> _getAvailabilityForDay(DateTime day) {
-    final dayKey = _toDayKey(day);
-    return _availabilitySlots[dayKey] ?? [];
   }
 
   @override
@@ -222,7 +248,7 @@ class _AdminScheduleCalendarScreenState
               child: Text('No bookings on this day'),
             ),
 
-          // Open Availability
+          // Open Availability — NOW SORTED EARLIEST TO LATEST
           if (_getAvailabilityForDay(_selectedDay!).isNotEmpty) ...[
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
@@ -233,10 +259,13 @@ class _AdminScheduleCalendarScreenState
               padding: const EdgeInsets.all(16),
               child: Wrap(
                 spacing: 8,
+                runSpacing: 8,
                 children: _getAvailabilityForDay(_selectedDay!)
                     .map((slot) => Chip(
                           label: Text(slot),
                           backgroundColor: Colors.green.withOpacity(0.2),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 8),
                         ))
                     .toList(),
               ),

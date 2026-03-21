@@ -64,9 +64,9 @@ class _AdminEmployeeDetailsScreenState
         final data = doc.data();
         final time = (data['timestamp'] as Timestamp).toDate();
         final type = data['type'] as String;
-        if (type == 'in')
+        if (type == 'in') {
           openIn = time;
-        else if (type == 'out' && openIn != null) {
+        } else if (type == 'out' && openIn != null) {
           totalHours += time.difference(openIn);
           openIn = null;
         }

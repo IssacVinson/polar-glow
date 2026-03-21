@@ -72,7 +72,7 @@ class AdminDashboard extends StatelessWidget {
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const UserPromotionScreen()),
+                            builder: (_) => const AdminPromotionScreen()),
                       ),
                     ),
                     _TaskCard(

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../core/utils/alaska_date_utils.dart';
 import 'admin_schedule_calendar_screen.dart';
 
 class AdminManageBookingsScreen extends StatefulWidget {
@@ -34,7 +35,6 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
         if (email != null && email.contains('@')) return email;
       }
     } catch (_) {}
-    // Fallback to shortened ID so it's readable
     return customerId.length > 12
         ? '${customerId.substring(0, 12)}...'
         : customerId;
@@ -117,9 +117,11 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
                     final bookingId = doc.id;
                     final customerId =
                         data['customerId'] ?? data['customerEmail'];
-                    final date = (data['date'] as Timestamp).toDate();
-                    final timeSlot =
-                        data['time'] ?? data['timeSlot'] ?? 'No time';
+                    final utcDate = (data['date'] as Timestamp).toDate();
+                    final alaskaDate = AlaskaDateUtils.toAlaskaDayKey(utcDate);
+                    final timeSlot = data['cars']?[0]?['time'] ??
+                        data['timeSlot'] ??
+                        'No time';
                     final assignedEmployeeId = data['assignedEmployeeId'] ??
                         data['assignedDetailerId'];
                     final totalPrice = (data['totalPrice'] ?? 0.0).toDouble();
@@ -140,7 +142,7 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w600)),
                             subtitle: Text(
-                              '${DateFormat('MMM d, yyyy').format(date)} at $timeSlot\n'
+                              '${DateFormat('MMM d, yyyy').format(alaskaDate)} at $timeSlot\n'
                               '$servicesCount service${servicesCount == 1 ? '' : 's'} • \$${totalPrice.toStringAsFixed(2)}',
                             ),
                             trailing: Row(
@@ -223,7 +225,7 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
               content: SizedBox(
                 width: double.maxFinite,
                 child: DropdownButtonFormField<String>(
-                  value: selectedId,
+                  initialValue: selectedId,
                   decoration:
                       const InputDecoration(labelText: 'Select Employee'),
                   items: employees.map((e) {
@@ -299,6 +301,9 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
 
   void _showBookingDetails(
       BuildContext context, Map<String, dynamic> data, String displayEmail) {
+    final utcDate = (data['date'] as Timestamp).toDate();
+    final alaskaDate = AlaskaDateUtils.toAlaskaDayKey(utcDate);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -312,9 +317,9 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
             Text('Customer: $displayEmail'),
+            Text('Date: ${DateFormat('MMM d, yyyy').format(alaskaDate)}'),
             Text(
-                'Date: ${DateFormat('MMM d, yyyy').format((data['date'] as Timestamp).toDate())}'),
-            Text('Time: ${data['time'] ?? data['timeSlot'] ?? 'N/A'}'),
+                'Time: ${data['cars']?[0]?['time'] ?? data['timeSlot'] ?? 'N/A'}'),
             Text(
                 'Total: \$${data['totalPrice']?.toStringAsFixed(2) ?? '0.00'}'),
             const SizedBox(height: 24),

@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../Providers/auth_provider.dart';
+import '../core/utils/alaska_date_utils.dart';
 import 'employee_availability_screen.dart';
 
 class CalendarView extends StatefulWidget {
@@ -38,9 +39,10 @@ class _CalendarViewState extends State<CalendarView> {
 
   Future<void> _loadDayData(DateTime day) async {
     final uid = context.read<AuthProvider>().user!.uid;
-    final dateStr = DateFormat('yyyy-MM-dd').format(day);
+    final dateStr = AlaskaDateUtils.toDateString(day);
+    final storageDate = AlaskaDateUtils.toAlaskaStorageDate(day);
 
-    // Load availability
+    // Load availability (Alaska day string)
     final availDoc = await FirebaseFirestore.instance
         .collection('users')
         .doc(uid)
@@ -48,11 +50,11 @@ class _CalendarViewState extends State<CalendarView> {
         .doc(dateStr)
         .get();
 
-    // Load bookings
+    // Load bookings using correct Alaska storage Timestamp
     final bookingSnap = await FirebaseFirestore.instance
         .collection('bookings')
         .where('assignedDetailerId', isEqualTo: uid)
-        .where('date', isEqualTo: Timestamp.fromDate(day))
+        .where('date', isEqualTo: Timestamp.fromDate(storageDate))
         .get();
 
     final List<Map<String, dynamic>> loadedBookings = [];
@@ -143,7 +145,7 @@ class _CalendarViewState extends State<CalendarView> {
     if (_selectedDay == null) return;
 
     final uid = context.read<AuthProvider>().user!.uid;
-    final dateStr = DateFormat('yyyy-MM-dd').format(_selectedDay!);
+    final dateStr = AlaskaDateUtils.toDateString(_selectedDay!);
 
     List<String> editingSlots = List<String>.from(_myTimeSlots);
     List<String> editingRegions = List<String>.from(_myRegions);
@@ -218,10 +220,11 @@ class _CalendarViewState extends State<CalendarView> {
                         label: Text(r),
                         selected: selected,
                         onSelected: (sel) => setModalState(() {
-                          if (sel)
+                          if (sel) {
                             editingRegions.add(r);
-                          else
+                          } else {
                             editingRegions.remove(r);
+                          }
                         }),
                       );
                     }).toList(),

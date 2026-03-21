@@ -185,8 +185,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 keyboardType: TextInputType.emailAddress,
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Required';
-                  if (!_emailRegex.hasMatch(v))
+                  if (!_emailRegex.hasMatch(v)) {
                     return 'Please enter a valid email';
+                  }
                   return null;
                 },
               ),
