@@ -4,9 +4,10 @@ import 'package:provider/provider.dart';
 import '../Providers/auth_provider.dart';
 import 'employee_clock_screen.dart';
 import 'calendar_view.dart';
-import 'admin_hours_pay_screen.dart';
+import 'employee_hours_pay_screen.dart';
+import 'employee_finances_screen.dart';
 import 'profile_screen.dart';
-import 'employee_mileage_screen.dart'; // ← NEW
+import 'employee_mileage_screen.dart';
 
 class EmployeeDashboard extends StatelessWidget {
   const EmployeeDashboard({super.key});
@@ -47,35 +48,6 @@ class EmployeeDashboard extends StatelessWidget {
                   style: TextStyle(fontSize: 16, color: Colors.grey),
                 ),
                 const SizedBox(height: 32),
-
-                // Clock In/Out Card
-                Card(
-                  elevation: 6,
-                  color: Colors.blueGrey[800],
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16)),
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.all(20),
-                    leading: const Icon(Icons.access_time_filled,
-                        size: 50, color: Colors.cyanAccent),
-                    title: const Text('Clock In / Out',
-                        style: TextStyle(
-                            fontSize: 22, fontWeight: FontWeight.w600)),
-                    subtitle: const Text('Track your work hours',
-                        style: TextStyle(fontSize: 15)),
-                    trailing: const Icon(Icons.arrow_forward_ios,
-                        color: Colors.white70),
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const EmployeeClockScreen()),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 28),
-
                 const Text(
                   'Quick Actions',
                   style: TextStyle(
@@ -84,13 +56,22 @@ class EmployeeDashboard extends StatelessWidget {
                       color: Colors.white),
                 ),
                 const SizedBox(height: 16),
-
                 Expanded(
                   child: GridView.count(
                     crossAxisCount: 2,
                     crossAxisSpacing: 14,
                     mainAxisSpacing: 14,
                     children: [
+                      // Clock In/Out — now first in top-left, same style as others
+                      _buildCard(context, Icons.access_time_filled,
+                          'Clock In / Out', Colors.cyanAccent, () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const EmployeeClockScreen()),
+                        );
+                      }),
+
                       _buildCard(context, Icons.calendar_today, 'My Schedule',
                           Colors.teal, () {
                         Navigator.push(
@@ -111,9 +92,17 @@ class EmployeeDashboard extends StatelessWidget {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                AdminHoursPayScreen(employeeId: currentUserId),
-                          ),
+                              builder: (_) => EmployeeHoursPayScreen(
+                                  employeeId: currentUserId)),
+                        );
+                      }),
+                      _buildCard(context, Icons.account_balance_wallet,
+                          'My Finances', Colors.cyan, () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => EmployeeFinancesScreen(
+                                  employeeId: currentUserId)),
                         );
                       }),
                       _buildCard(context, Icons.person_outline, 'Profile',
