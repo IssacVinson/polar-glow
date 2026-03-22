@@ -285,8 +285,6 @@ class _CalendarViewState extends State<CalendarView> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
       appBar: AppBar(title: const Text('My Schedule'), centerTitle: true),
       floatingActionButton: FloatingActionButton.extended(
