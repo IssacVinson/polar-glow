@@ -2,13 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import 'admin_manage_bookings_screen.dart';
-import 'admin_promotion_screen.dart'; // Fixed typo
+import 'admin_promotion_screen.dart';
 import 'admin_employee_list_screen.dart';
 import 'admin_schedule_calendar_screen.dart';
 import 'admin_services_screen.dart';
 import 'admin_payroll_overview_screen.dart';
 import 'profile_screen.dart';
-import 'admin_view_clients_screen.dart'; // ← NEW IMPORT
+import 'admin_view_clients_screen.dart';
+import 'admin_finance_screen.dart'; // ← NEW
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -51,7 +52,7 @@ class AdminDashboard extends StatelessWidget {
               ),
               const SizedBox(height: 6),
               Text(
-                'Manage users, schedules & more',
+                'Manage users, schedules & money',
                 style: theme.textTheme.bodyLarge?.copyWith(
                   color: colorScheme.onSurfaceVariant,
                 ),
@@ -63,8 +64,7 @@ class AdminDashboard extends StatelessWidget {
                   crossAxisCount: 2,
                   mainAxisSpacing: 16,
                   crossAxisSpacing: 16,
-                  childAspectRatio:
-                      isSmallScreen ? 0.92 : 1.05, // Dynamic for phones
+                  childAspectRatio: isSmallScreen ? 0.92 : 1.05,
                   padding: const EdgeInsets.only(bottom: 16),
                   children: [
                     _TaskCard(
@@ -73,10 +73,9 @@ class AdminDashboard extends StatelessWidget {
                       subtitle: 'Change roles & permissions',
                       color: Colors.teal,
                       onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const AdminPromotionScreen()),
-                      ),
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const AdminPromotionScreen())),
                     ),
                     _TaskCard(
                       icon: Icons.people_alt_rounded,
@@ -84,10 +83,9 @@ class AdminDashboard extends StatelessWidget {
                       subtitle: 'View & search staff',
                       color: Colors.indigo,
                       onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const AdminEmployeeListScreen()),
-                      ),
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const AdminEmployeeListScreen())),
                     ),
                     _TaskCard(
                       icon: Icons.calendar_today_rounded,
@@ -95,11 +93,10 @@ class AdminDashboard extends StatelessWidget {
                       subtitle: 'All bookings at a glance',
                       color: Colors.deepPurple,
                       onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) =>
-                                const AdminScheduleCalendarScreen()),
-                      ),
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  const AdminScheduleCalendarScreen())),
                     ),
                     _TaskCard(
                       icon: Icons.list_alt_rounded,
@@ -107,10 +104,9 @@ class AdminDashboard extends StatelessWidget {
                       subtitle: 'Edit pricing & offerings',
                       color: Colors.purple,
                       onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const AdminServicesScreen()),
-                      ),
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const AdminServicesScreen())),
                     ),
                     _TaskCard(
                       icon: Icons.book_online_rounded,
@@ -118,22 +114,20 @@ class AdminDashboard extends StatelessWidget {
                       subtitle: 'Assign, edit, cancel',
                       color: Colors.amber.shade700,
                       onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const AdminManageBookingsScreen()),
-                      ),
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  const AdminManageBookingsScreen())),
                     ),
-                    // ── NEW CARD ──
                     _TaskCard(
                       icon: Icons.group_rounded,
                       title: 'View Clients',
                       subtitle: 'Search name, email, phone',
                       color: Colors.blue,
                       onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const AdminViewClientsScreen()),
-                      ),
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const AdminViewClientsScreen())),
                     ),
                     _TaskCard(
                       icon: Icons.payments_rounded,
@@ -141,9 +135,21 @@ class AdminDashboard extends StatelessWidget {
                       subtitle: 'Hours, earnings, payouts',
                       color: Colors.cyan,
                       onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) =>
+                                  const AdminPayrollOverviewScreen())),
+                    ),
+                    // ── NEW FINANCE CARD ──
+                    _TaskCard(
+                      icon: Icons.account_balance_wallet_rounded,
+                      title: 'Finance Overview',
+                      subtitle: 'All money in & out',
+                      color: Colors.green,
+                      onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
-                            builder: (_) => const AdminPayrollOverviewScreen()),
+                            builder: (_) => const AdminFinanceScreen()),
                       ),
                     ),
                     _TaskCard(
@@ -152,10 +158,9 @@ class AdminDashboard extends StatelessWidget {
                       subtitle: 'Edit name, phone & password',
                       color: Colors.purple,
                       onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => const ProfileScreen()),
-                      ),
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ProfileScreen())),
                     ),
                   ],
                 ),
@@ -172,20 +177,15 @@ class AdminDashboard extends StatelessWidget {
     try {
       await FirebaseAuth.instance.signOut();
       if (!context.mounted) return;
-      messenger.showSnackBar(
-        const SnackBar(
-            content: Text('Signed out successfully'),
-            behavior: SnackBarBehavior.floating),
-      );
+      messenger.showSnackBar(const SnackBar(
+          content: Text('Signed out successfully'),
+          behavior: SnackBarBehavior.floating));
     } catch (e) {
       if (!context.mounted) return;
-      messenger.showSnackBar(
-        SnackBar(
+      messenger.showSnackBar(SnackBar(
           content: Text('Sign out failed: ${e.toString().split('\n')[0]}'),
           backgroundColor: Theme.of(context).colorScheme.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+          behavior: SnackBarBehavior.floating));
     }
   }
 }
@@ -233,29 +233,22 @@ class _TaskCard extends StatelessWidget {
             children: [
               Icon(icon, size: 46, color: color),
               const SizedBox(height: 16),
-              Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                  color: colorScheme.onSurface,
-                ),
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text(title,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: colorScheme.onSurface),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
               const SizedBox(height: 8),
               Flexible(
-                child: Text(
-                  subtitle,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                    height: 1.3,
-                  ),
-                  textAlign: TextAlign.center,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                  softWrap: true,
-                ),
+                child: Text(subtitle,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant, height: 1.3),
+                    textAlign: TextAlign.center,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    softWrap: true),
               ),
             ],
           ),

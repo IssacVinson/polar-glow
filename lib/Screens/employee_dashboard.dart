@@ -5,7 +5,8 @@ import '../Providers/auth_provider.dart';
 import 'employee_clock_screen.dart';
 import 'calendar_view.dart';
 import 'admin_hours_pay_screen.dart';
-import 'profile_screen.dart'; // ← NEW import for real Profile screen
+import 'profile_screen.dart';
+import 'employee_mileage_screen.dart'; // ← NEW
 
 class EmployeeDashboard extends StatelessWidget {
   const EmployeeDashboard({super.key});
@@ -96,6 +97,14 @@ class EmployeeDashboard extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                                 builder: (_) => const CalendarView()));
+                      }),
+                      _buildCard(context, Icons.directions_car,
+                          'Mileage Reimbursement', Colors.orange, () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const EmployeeMileageScreen()),
+                        );
                       }),
                       _buildCard(context, Icons.attach_money, 'Hours & Pay',
                           Colors.green, () {

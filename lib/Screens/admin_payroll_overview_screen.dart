@@ -13,85 +13,147 @@ class AdminPayrollOverviewScreen extends StatefulWidget {
 
 class _AdminPayrollOverviewScreenState
     extends State<AdminPayrollOverviewScreen> {
+  final _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _searchController.addListener(() {
+      setState(
+          () => _searchQuery = _searchController.text.toLowerCase().trim());
+    });
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Payroll Overview'), centerTitle: true),
-      body: StreamBuilder<QuerySnapshot>(
-        stream: FirebaseFirestore.instance
-            .collection('users')
-            .where('role', isEqualTo: 'employee')
-            .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return Center(
-                child: Text('Error: ${snapshot.error}',
-                    style: const TextStyle(color: Colors.red)));
-          }
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-            return const Center(child: Text('No employees found'));
-          }
-
-          final employees = snapshot.data!.docs;
-
-          return ListView.builder(
+      body: Column(
+        children: [
+          // ── NEW: Name-based search bar (exactly like other screens) ──
+          Padding(
             padding: const EdgeInsets.all(16),
-            itemCount: employees.length,
-            itemBuilder: (context, index) {
-              final doc = employees[index];
-              final employeeId = doc.id;
-              final email = doc['email'] ?? 'No email';
+            child: TextField(
+              controller: _searchController,
+              decoration: InputDecoration(
+                labelText: 'Search by name or email',
+                prefixIcon: const Icon(Icons.search),
+                border:
+                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                filled: true,
+                fillColor: Theme.of(context).colorScheme.surfaceContainerLowest,
+              ),
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .where('role', isEqualTo: 'employee')
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Center(
+                      child: Text('Error: ${snapshot.error}',
+                          style: const TextStyle(color: Colors.red)));
+                }
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(child: Text('No employees found'));
+                }
 
-              return FutureBuilder<Map<String, dynamic>>(
-                future: _calculateEmployeeSummary(employeeId),
-                builder: (context, summarySnapshot) {
-                  if (summarySnapshot.connectionState ==
-                      ConnectionState.waiting) {
-                    return const Card(
-                        child: ListTile(title: Text('Loading...')));
-                  }
+                final employees = snapshot.data!.docs.where((doc) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final name = (data['displayName'] ??
+                          data['fullName'] ??
+                          data['name'] ??
+                          data['email'] ??
+                          '')
+                      .toString()
+                      .toLowerCase();
+                  final email = (data['email'] ?? '').toString().toLowerCase();
+                  return name.contains(_searchQuery) ||
+                      email.contains(_searchQuery);
+                }).toList();
 
-                  final summary = summarySnapshot.data ??
-                      {'hours': '0h 0m', 'pay': 0.0, 'rate': 20.0};
+                if (employees.isEmpty) {
+                  return const Center(child: Text('No matching employees'));
+                }
 
-                  return Card(
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      leading: const Icon(Icons.person, size: 40),
-                      title: Text(email,
-                          style: const TextStyle(fontWeight: FontWeight.w600)),
-                      subtitle: Text('Total Hours: ${summary['hours']}'),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text('\$${summary['pay'].toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green)),
-                          Text('\$${summary['rate'].toStringAsFixed(2)}/hr',
-                              style: const TextStyle(fontSize: 12)),
-                        ],
-                      ),
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) =>
-                                  AdminHoursPayScreen(employeeId: employeeId)),
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: employees.length,
+                  itemBuilder: (context, index) {
+                    final doc = employees[index];
+                    final employeeId = doc.id;
+                    final data = doc.data() as Map<String, dynamic>;
+                    final displayName = data['displayName'] ??
+                        data['fullName'] ??
+                        data['name'] ??
+                        data['email'] ??
+                        'Unknown';
+
+                    return FutureBuilder<Map<String, dynamic>>(
+                      future: _calculateEmployeeSummary(employeeId),
+                      builder: (context, summarySnapshot) {
+                        if (summarySnapshot.connectionState ==
+                            ConnectionState.waiting) {
+                          return const Card(
+                              child: ListTile(title: Text('Loading...')));
+                        }
+
+                        final summary = summarySnapshot.data ??
+                            {'hours': '0h 0m', 'pay': 0.0, 'rate': 20.0};
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: ListTile(
+                            leading: const Icon(Icons.person, size: 40),
+                            title: Text(displayName,
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.w600)),
+                            subtitle: Text('Total Hours: ${summary['hours']}'),
+                            trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text('\$${summary['pay'].toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.green)),
+                                Text(
+                                    '\$${summary['rate'].toStringAsFixed(2)}/hr',
+                                    style: const TextStyle(fontSize: 12)),
+                              ],
+                            ),
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) => AdminHoursPayScreen(
+                                        employeeId: employeeId)),
+                              );
+                            },
+                          ),
                         );
                       },
-                    ),
-                  );
-                },
-              );
-            },
-          );
-        },
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -102,7 +164,6 @@ class _AdminPayrollOverviewScreenState
       final now = DateTime.now();
       final startOfPeriod = now.subtract(const Duration(days: 14));
 
-      // Clock events (exact same logic as detail screen)
       final snapshot = await FirebaseFirestore.instance
           .collection('users')
           .doc(employeeId)
@@ -128,7 +189,6 @@ class _AdminPayrollOverviewScreenState
       }
       if (openIn != null) total += DateTime.now().difference(openIn);
 
-      // Real hourly rate from Firestore
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(employeeId)
