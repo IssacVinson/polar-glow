@@ -2,8 +2,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import 'booking_screen.dart';
 import 'services_screen.dart';
+import 'customer_my_bookings_screen.dart'; // ← NEW
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -21,7 +21,6 @@ class HomeScreen extends StatelessWidget {
             onPressed: () async {
               try {
                 await FirebaseAuth.instance.signOut();
-                // No need to navigate — AuthWrapper stream will handle going back to LoginScreen
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                     content: Text('Signed out successfully'),
@@ -46,13 +45,12 @@ class HomeScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Logo with fade + scale animation
               Image.asset(
-                    'assets/images/logo.png',
-                    width: 240,
-                    height: 240,
-                    fit: BoxFit.contain,
-                  )
+                'assets/images/logo.png',
+                width: 240,
+                height: 240,
+                fit: BoxFit.contain,
+              )
                   .animate()
                   .fadeIn(duration: 800.ms, curve: Curves.easeOut)
                   .scaleXY(begin: 0.85, end: 1.0, curve: Curves.easeOutBack),
@@ -84,7 +82,7 @@ class HomeScreen extends StatelessWidget {
 
               const SizedBox(height: 56),
 
-              // Book Appointment Button
+              // Book Appointment Button → Now opens Services & Pricing
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -102,10 +100,7 @@ class HomeScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) =>
-                            const BookingScreen(selectedServices: []),
-                      ),
+                      MaterialPageRoute(builder: (_) => const ServicesScreen()),
                     );
                   },
                 ),
@@ -113,13 +108,13 @@ class HomeScreen extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // View Services Button
+              // Changed to View My Bookings
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
                   icon: const Icon(Icons.list_alt),
                   label: const Text(
-                    'View Services & Pricing',
+                    'View My Bookings',
                     style: TextStyle(fontSize: 18),
                   ),
                   style: OutlinedButton.styleFrom(
@@ -132,7 +127,8 @@ class HomeScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ServicesScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const CustomerMyBookingsScreen()),
                     );
                   },
                 ),
@@ -141,7 +137,7 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 48),
 
               const Text(
-                'Serving Alaska since 2025 • Eco-friendly • Satisfaction guaranteed',
+                'Serving Alaska Since 2025 • Expert Attention to Detail • Satisfaction Guaranteed',
                 style: TextStyle(
                   fontSize: 14,
                   color: Colors.white54,

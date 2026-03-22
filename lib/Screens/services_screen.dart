@@ -17,6 +17,16 @@ class _ServicesScreenState extends State<ServicesScreen> {
   String? _errorMessage;
   bool _loading = true;
 
+  // NEW: Region selection
+  String? _selectedRegion;
+
+  final List<String> _regions = [
+    'Anchorage',
+    'Wasilla',
+    'Eagle River',
+    'Base (JBER)'
+  ];
+
   @override
   void initState() {
     super.initState();
@@ -53,13 +63,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
     return _services.where((s) => _selectedServices[s.id] == true).toList();
   }
 
-  // Track selected state by service ID
   final Map<String, bool> _selectedServices = {};
+
+  bool get _canContinue => _selected.isNotEmpty && _selectedRegion != null;
 
   @override
   Widget build(BuildContext context) {
-    final hasSelection = _selected.isNotEmpty;
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Services & Pricing'),
@@ -77,11 +86,9 @@ class _ServicesScreenState extends State<ServicesScreen> {
                         const Icon(Icons.error_outline,
                             size: 60, color: Colors.red),
                         const SizedBox(height: 16),
-                        Text(
-                          _errorMessage!,
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 16),
-                        ),
+                        Text(_errorMessage!,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(fontSize: 16)),
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
                           icon: const Icon(Icons.refresh),
@@ -112,8 +119,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                       ? Colors.blueGrey[800]
                                       : Colors.blueGrey[700],
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
+                                      borderRadius: BorderRadius.circular(12)),
                                   child: CheckboxListTile(
                                     value: isSelected,
                                     onChanged: (bool? value) {
@@ -122,34 +128,28 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                             value ?? false;
                                       });
                                     },
-                                    title: Text(
-                                      service.name,
-                                      style: const TextStyle(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
+                                    title: Text(service.name,
+                                        style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white)),
                                     subtitle: Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          '\$${service.price.toStringAsFixed(2)}',
-                                          style: TextStyle(
-                                            fontSize: 20,
-                                            fontWeight: FontWeight.bold,
-                                            color: service.category == 'add_on'
-                                                ? Colors.cyan[300]
-                                                : Colors.white,
-                                          ),
-                                        ),
+                                            '\$${service.price.toStringAsFixed(2)}',
+                                            style: TextStyle(
+                                                fontSize: 20,
+                                                fontWeight: FontWeight.bold,
+                                                color:
+                                                    service.category == 'add_on'
+                                                        ? Colors.cyan[300]
+                                                        : Colors.white)),
                                         const SizedBox(height: 4),
-                                        Text(
-                                          service.description,
-                                          style: const TextStyle(
-                                              color: Colors.white70),
-                                        ),
+                                        Text(service.description,
+                                            style: const TextStyle(
+                                                color: Colors.white70)),
                                       ],
                                     ),
                                     controlAffinity:
@@ -157,85 +157,105 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                     activeColor: Colors.cyan[400],
                                     checkColor: Colors.black,
                                     contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
+                                        horizontal: 8, vertical: 4),
                                   ),
                                 );
                               },
                             ),
                     ),
 
-                    // Bottom action bar
+                    // Bottom action bar with Region selector
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.blueGrey[850],
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.4),
-                            blurRadius: 12,
-                            offset: const Offset(0, -4),
-                          ),
+                              color: Colors.black.withOpacity(0.4),
+                              blurRadius: 12,
+                              offset: const Offset(0, -4))
                         ],
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                          // Region selector
+                          DropdownButtonFormField<String>(
+                            value: _selectedRegion,
+                            decoration: const InputDecoration(
+                              labelText: 'Select Your Region',
+                              border: OutlineInputBorder(),
+                            ),
+                            hint: const Text('Choose region'),
+                            items: _regions
+                                .map((r) =>
+                                    DropdownMenuItem(value: r, child: Text(r)))
+                                .toList(),
+                            onChanged: (value) {
+                              setState(() => _selectedRegion = value);
+                            },
+                          ),
+                          const SizedBox(height: 16),
+
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text(
-                                'Selected',
-                                style: TextStyle(
-                                    color: Colors.white70, fontSize: 14),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Selected',
+                                      style: TextStyle(
+                                          color: Colors.white70, fontSize: 14)),
+                                  Text(
+                                    _selected.isNotEmpty
+                                        ? '${_selected.length} service${_selected.length != 1 ? "s" : ""}'
+                                        : 'None selected',
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ],
                               ),
-                              Text(
-                                hasSelection
-                                    ? '${_selected.length} service${_selected.length != 1 ? "s" : ""}'
-                                    : 'None selected',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                              ElevatedButton.icon(
+                                onPressed: _canContinue
+                                    ? () {
+                                        final selectedMaps = _selected
+                                            .map((s) => {
+                                                  'id': s.id,
+                                                  'name': s.name,
+                                                  'price': s.price,
+                                                  'description': s.description,
+                                                })
+                                            .toList();
+
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (_) => BookingScreen(
+                                              selectedServices: selectedMaps,
+                                              selectedRegion:
+                                                  _selectedRegion!, // now required
+                                            ),
+                                          ),
+                                        );
+                                      }
+                                    : null,
+                                icon:
+                                    const Icon(Icons.calendar_today, size: 20),
+                                label: const Text('Book Selected',
+                                    style: TextStyle(fontSize: 16)),
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: _canContinue
+                                      ? Colors.cyan[700]
+                                      : Colors.grey[700],
+                                  foregroundColor: Colors.white,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 20, vertical: 14),
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12)),
                                 ),
                               ),
                             ],
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: hasSelection
-                                ? () {
-                                    final selectedMaps = _selected
-                                        .map((s) => {
-                                              'id': s.id,
-                                              'name': s.name,
-                                              'price': s.price,
-                                              'description': s.description,
-                                            })
-                                        .toList();
-
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) => BookingScreen(
-                                            selectedServices: selectedMaps),
-                                      ),
-                                    );
-                                  }
-                                : null,
-                            icon: const Icon(Icons.calendar_today, size: 20),
-                            label: const Text('Book Selected',
-                                style: TextStyle(fontSize: 16)),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: hasSelection
-                                  ? Colors.cyan[700]
-                                  : Colors.grey[700],
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 20, vertical: 14),
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12)),
-                            ),
                           ),
                         ],
                       ),

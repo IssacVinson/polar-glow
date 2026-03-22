@@ -11,8 +11,13 @@ import '../Providers/auth_provider.dart';
 
 class BookingScreen extends StatefulWidget {
   final List<Map<String, dynamic>> selectedServices;
+  final String selectedRegion;
 
-  const BookingScreen({super.key, required this.selectedServices});
+  const BookingScreen({
+    super.key,
+    required this.selectedServices,
+    required this.selectedRegion,
+  });
 
   @override
   State<BookingScreen> createState() => _BookingScreenState();
@@ -23,7 +28,6 @@ class _BookingScreenState extends State<BookingScreen> {
   final _addressController = TextEditingController();
   final _notesController = TextEditingController();
 
-  // Per-car data
   int _numCars = 1;
   List<TextEditingController> _vehicleControllers = [];
   List<TimeOfDay?> _carTimes = [];
@@ -35,6 +39,7 @@ class _BookingScreenState extends State<BookingScreen> {
 
   List<Map<String, dynamic>> _employees = [];
   late Set<DateTime> _availableDays;
+  Map<DateTime, int> _slotCounts = {}; // NEW: number of available slots per day
   List<Map<String, dynamic>> _availableSlots = [];
   bool _loadingSlots = false;
 
@@ -51,7 +56,9 @@ class _BookingScreenState extends State<BookingScreen> {
   void initState() {
     super.initState();
     _availableDays = {};
-    _selectedDay = _focusedDay;
+    _slotCounts = {};
+    _selectedDay = DateTime.now(); // Always start on TODAY
+    _focusedDay = DateTime.now();
     _updateCarControllers(_numCars);
     _loadEmployees();
     _loadAvailableDays();
@@ -59,7 +66,6 @@ class _BookingScreenState extends State<BookingScreen> {
 
   void _updateCarControllers(int count) {
     for (var c in _vehicleControllers) c.dispose();
-
     _vehicleControllers = List.generate(count, (_) => TextEditingController());
     _carTimes = List.generate(count, (_) => null);
     _selectedFullSlots = List.generate(count, (_) => null);
@@ -106,24 +112,30 @@ class _BookingScreenState extends State<BookingScreen> {
             DateTime(now.year, now.month, now.day).add(Duration(days: i));
         final dateStr = AlaskaDateUtils.toDateString(date);
 
-        futures.add(
-          FirebaseFirestore.instance
-              .collection('users')
-              .doc(employeeId)
-              .collection('availability')
-              .doc(dateStr)
-              .get()
-              .then((doc) {
-            if (doc.exists &&
-                (doc.data()?['timeSlots'] as List?)?.isNotEmpty == true) {
+        futures.add(FirebaseFirestore.instance
+            .collection('users')
+            .doc(employeeId)
+            .collection('availability')
+            .doc(dateStr)
+            .get()
+            .then((doc) {
+          if (doc.exists) {
+            final data = doc.data()!;
+            final regions = List<String>.from(data['regions'] ?? []);
+            final timeSlots = List<String>.from(data['timeSlots'] ?? []);
+
+            if (regions.contains(widget.selectedRegion) &&
+                timeSlots.isNotEmpty) {
               if (mounted) {
-                setState(() => _availableDays.add(date));
+                setState(() {
+                  _availableDays.add(date);
+                  _slotCounts[date] =
+                      timeSlots.length; // store count for marker
+                });
               }
             }
-          }).catchError((e) {
-            debugPrint('Error checking $employeeId / $dateStr: $e');
-          }),
-        );
+          }
+        }));
       }
     }
 
@@ -154,6 +166,8 @@ class _BookingScreenState extends State<BookingScreen> {
 
         if (doc.exists) {
           final data = doc.data()!;
+          final regions = List<String>.from(data['regions'] ?? []);
+          if (!regions.contains(widget.selectedRegion)) continue;
 
           final timeSlots = List<String>.from(data['timeSlots'] ?? []);
 
@@ -179,7 +193,6 @@ class _BookingScreenState extends State<BookingScreen> {
                 'employeeId': employeeId,
                 'employeeName': emp['name'],
                 'slots': freeSlots,
-                'regions': List<String>.from(data['regions'] ?? []),
               });
             }
           }
@@ -193,12 +206,10 @@ class _BookingScreenState extends State<BookingScreen> {
         });
       }
     } catch (e) {
-      print('Error loading slots for $dateStr: $e');
       if (mounted) {
         setState(() => _loadingSlots = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error loading available times: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -245,7 +256,8 @@ class _BookingScreenState extends State<BookingScreen> {
     if (assignedDetailerId == null) {
       if (_availableSlots.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('No available detailers on this day')));
+            content:
+                Text('No available detailers in your region on this day')));
         return;
       }
       assignedDetailerId = _availableSlots.first['employeeId'] as String?;
@@ -276,7 +288,7 @@ class _BookingScreenState extends State<BookingScreen> {
                 .collection('availability')
                 .doc(dateStr)
                 .update({
-              'timeSlots': FieldValue.arrayRemove([fullSlot]),
+              'timeSlots': FieldValue.arrayRemove([fullSlot])
             });
           }
         }
@@ -309,7 +321,6 @@ class _BookingScreenState extends State<BookingScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Selected Services
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -342,10 +353,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
-              // Number of cars
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -376,10 +384,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
-              // Calendar with safe height for phones
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -399,7 +404,6 @@ class _BookingScreenState extends State<BookingScreen> {
                           selectedDayPredicate: (day) =>
                               isSameDay(_selectedDay, day),
                           onDaySelected: _onDaySelected,
-                          // ── "2 weeks" BUTTON REMOVED + LOCKED TO MONTH VIEW ──
                           headerStyle: const HeaderStyle(
                             formatButtonVisible: false,
                             titleCentered: true,
@@ -409,18 +413,26 @@ class _BookingScreenState extends State<BookingScreen> {
                           calendarFormat: CalendarFormat.month,
                           calendarBuilders: CalendarBuilders(
                             markerBuilder: (context, day, _) {
-                              final isAvailable =
-                                  _availableDays.any((d) => isSameDay(d, day));
-                              if (isAvailable) {
+                              final count = _slotCounts[
+                                      DateTime(day.year, day.month, day.day)] ??
+                                  0;
+                              if (count > 0) {
                                 return Positioned(
                                   right: 6,
                                   top: 6,
                                   child: Container(
-                                    width: 8,
-                                    height: 8,
+                                    padding: const EdgeInsets.all(4),
                                     decoration: const BoxDecoration(
                                       color: Colors.green,
                                       shape: BoxShape.circle,
+                                    ),
+                                    child: Text(
+                                      count.toString(),
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 );
@@ -430,13 +442,11 @@ class _BookingScreenState extends State<BookingScreen> {
                           ),
                           calendarStyle: CalendarStyle(
                             todayDecoration: BoxDecoration(
-                              color: colorScheme.primary.withOpacity(0.3),
-                              shape: BoxShape.circle,
-                            ),
+                                color: colorScheme.primary.withOpacity(0.3),
+                                shape: BoxShape.circle),
                             selectedDecoration: BoxDecoration(
-                              color: colorScheme.primary,
-                              shape: BoxShape.circle,
-                            ),
+                                color: colorScheme.primary,
+                                shape: BoxShape.circle),
                           ),
                         ),
                       ),
@@ -444,10 +454,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
-              // Available Times
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(16),
@@ -462,7 +469,8 @@ class _BookingScreenState extends State<BookingScreen> {
                       else if (_selectedDay == null)
                         const Text('Select a date above')
                       else if (_availableSlots.isEmpty)
-                        const Text('No available slots on this day',
+                        const Text(
+                            'No available detailers in your region on this day',
                             style: TextStyle(color: Colors.red))
                       else
                         Column(
@@ -572,10 +580,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
-              // Vehicle info per car
               ...List.generate(_numCars, (index) {
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -602,9 +607,7 @@ class _BookingScreenState extends State<BookingScreen> {
                   ),
                 );
               }),
-
               const SizedBox(height: 24),
-
               TextFormField(
                 controller: _addressController,
                 decoration: const InputDecoration(
@@ -612,9 +615,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     border: OutlineInputBorder()),
                 validator: (v) => v!.trim().isEmpty ? 'Required' : null,
               ),
-
               const SizedBox(height: 16),
-
               TextFormField(
                 controller: _notesController,
                 decoration: const InputDecoration(
@@ -622,9 +623,7 @@ class _BookingScreenState extends State<BookingScreen> {
                     border: OutlineInputBorder()),
                 maxLines: 3,
               ),
-
               const SizedBox(height: 32),
-
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
