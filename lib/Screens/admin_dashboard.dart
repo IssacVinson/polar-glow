@@ -8,6 +8,7 @@ import 'admin_schedule_calendar_screen.dart';
 import 'admin_services_screen.dart';
 import 'admin_payroll_overview_screen.dart';
 import 'profile_screen.dart';
+import 'admin_view_clients_screen.dart'; // ← NEW IMPORT
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -120,6 +121,18 @@ class AdminDashboard extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                             builder: (_) => const AdminManageBookingsScreen()),
+                      ),
+                    ),
+                    // ── NEW CARD ──
+                    _TaskCard(
+                      icon: Icons.group_rounded,
+                      title: 'View Clients',
+                      subtitle: 'Search name, email, phone',
+                      color: Colors.blue,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const AdminViewClientsScreen()),
                       ),
                     ),
                     _TaskCard(

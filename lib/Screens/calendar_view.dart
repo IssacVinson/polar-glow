@@ -314,6 +314,14 @@ class _CalendarViewState extends State<CalendarView> {
                 });
                 _loadDayData(selectedDay);
               },
+              // ── "2 weeks" BUTTON REMOVED + LOCKED TO MONTH VIEW ──
+              headerStyle: const HeaderStyle(
+                formatButtonVisible: false,
+                titleCentered: true,
+                leftChevronVisible: true,
+                rightChevronVisible: true,
+              ),
+              calendarFormat: CalendarFormat.month,
               calendarBuilders: CalendarBuilders(
                 markerBuilder: (context, day, _) {
                   final count = _getBookingCount(day);
@@ -371,7 +379,7 @@ class _CalendarViewState extends State<CalendarView> {
           // Scheduled Bookings
           if (_bookings.isNotEmpty) ...[
             const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text('📅 Scheduled Bookings',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),
@@ -418,7 +426,7 @@ class _CalendarViewState extends State<CalendarView> {
           // Open Availability
           if (_myTimeSlots.isNotEmpty) ...[
             const Padding(
-              padding: EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
               child: Text('🟢 Open Availability',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             ),

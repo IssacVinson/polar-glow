@@ -399,6 +399,13 @@ class _BookingScreenState extends State<BookingScreen> {
                           selectedDayPredicate: (day) =>
                               isSameDay(_selectedDay, day),
                           onDaySelected: _onDaySelected,
+                          // ── "2 weeks" BUTTON REMOVED + LOCKED TO MONTH VIEW ──
+                          headerStyle: const HeaderStyle(
+                            formatButtonVisible: false,
+                            titleCentered: true,
+                            leftChevronVisible: true,
+                            rightChevronVisible: true,
+                          ),
                           calendarFormat: CalendarFormat.month,
                           calendarBuilders: CalendarBuilders(
                             markerBuilder: (context, day, _) {

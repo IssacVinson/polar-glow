@@ -36,8 +36,8 @@ class _AdminScheduleCalendarScreenState
   }
 
   Future<void> _loadEvents() async {
-    final startDate = _focusedDay.subtract(const Duration(days: 30));
-    final endDate = _focusedDay.add(const Duration(days: 30));
+    final startDate = _focusedDay.subtract(const Duration(days: 365));
+    final endDate = _focusedDay.add(const Duration(days: 365));
 
     final startStorage = AlaskaDateUtils.toAlaskaStorageDate(startDate);
     final endStorage = AlaskaDateUtils.toAlaskaStorageDate(endDate);
@@ -154,13 +154,11 @@ class _AdminScheduleCalendarScreenState
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     final calendarCard = Card(
       margin: const EdgeInsets.all(16),
       child: TableCalendar(
-        firstDay: DateTime.now().subtract(const Duration(days: 7)),
-        lastDay: DateTime.now().add(const Duration(days: 90)),
+        firstDay: DateTime.now().subtract(const Duration(days: 365)),
+        lastDay: DateTime.now().add(const Duration(days: 365)),
         focusedDay: _focusedDay,
         selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
         onDaySelected: (selectedDay, focusedDay) {
@@ -169,6 +167,14 @@ class _AdminScheduleCalendarScreenState
             _focusedDay = focusedDay;
           });
         },
+        // ── REMOVED "2 weeks" BUTTON FOREVER ──
+        headerStyle: const HeaderStyle(
+          formatButtonVisible: false, // hides the 2 weeks / month toggle
+          titleCentered: true,
+          leftChevronVisible: true,
+          rightChevronVisible: true,
+        ),
+        calendarFormat: CalendarFormat.month, // locked to month view only
         calendarBuilders: CalendarBuilders(
           markerBuilder: (context, day, _) {
             final bookingCount = _getBookingCount(day);

@@ -53,8 +53,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _originalUsername;
 
   // Proper email validation
-  final _emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-
   @override
   void initState() {
     super.initState();

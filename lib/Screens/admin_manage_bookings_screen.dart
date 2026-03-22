@@ -23,21 +23,47 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
     super.dispose();
   }
 
-  Future<String> _getCustomerEmail(String? customerId) async {
+  // ── UPDATED: Now prefers displayName (e.g. "Cassie"), falls back to email ──
+  Future<String> _getCustomerDisplay(String? customerId) async {
     if (customerId == null || customerId.isEmpty) return 'Unknown Customer';
+
     try {
       final userDoc = await FirebaseFirestore.instance
           .collection('users')
           .doc(customerId)
           .get();
       if (userDoc.exists) {
-        final email = userDoc.data()?['email'] as String?;
-        if (email != null && email.contains('@')) return email;
+        final data = userDoc.data()!;
+        final displayName = data['displayName'] ?? data['fullName'] ?? '';
+        final email = data['email'] ?? '';
+
+        if (displayName.isNotEmpty) return displayName;
+        if (email.isNotEmpty && email.contains('@')) return email;
       }
     } catch (_) {}
     return customerId.length > 12
         ? '${customerId.substring(0, 12)}...'
         : customerId;
+  }
+
+  // (kept for employee name display – unchanged)
+  Future<String> _getEmployeeName(String? employeeId) async {
+    if (employeeId == null || employeeId.isEmpty) return 'Unassigned';
+    try {
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(employeeId)
+          .get();
+      if (userDoc.exists) {
+        final data = userDoc.data()!;
+        final name = data['displayName'] ??
+            data['fullName'] ??
+            data['name'] ??
+            (data['email']?.split('@')[0] ?? 'Unknown Employee');
+        return name;
+      }
+    } catch (_) {}
+    return 'Unknown Employee';
   }
 
   @override
@@ -65,7 +91,7 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                labelText: 'Search by customer email',
+                labelText: 'Search by customer name',
                 prefixIcon: const Icon(Icons.search),
                 border:
                     OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
@@ -95,24 +121,13 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
                   return const Center(child: Text('No bookings yet'));
                 }
 
-                final bookings = snapshot.data!.docs.where((doc) {
-                  final data = doc.data() as Map<String, dynamic>;
-                  final email =
-                      (data['customerEmail'] ?? data['customerId'] ?? '')
-                          .toString()
-                          .toLowerCase();
-                  return email.contains(_searchQuery);
-                }).toList();
-
-                if (bookings.isEmpty) {
-                  return const Center(child: Text('No matching bookings'));
-                }
+                final allBookings = snapshot.data!.docs;
 
                 return ListView.builder(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  itemCount: bookings.length,
+                  itemCount: allBookings.length,
                   itemBuilder: (context, index) {
-                    final doc = bookings[index];
+                    final doc = allBookings[index];
                     final data = doc.data() as Map<String, dynamic>;
                     final bookingId = doc.id;
                     final customerId =
@@ -128,17 +143,23 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
                     final servicesCount =
                         (data['services'] as List?)?.length ?? 0;
 
-                    return Card(
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: FutureBuilder<String>(
-                        future: _getCustomerEmail(customerId),
-                        builder: (context, emailSnapshot) {
-                          final displayEmail =
-                              emailSnapshot.data ?? 'Loading...';
+                    return FutureBuilder<String>(
+                      future: _getCustomerDisplay(customerId),
+                      builder: (context, displaySnapshot) {
+                        final displayText =
+                            displaySnapshot.data ?? 'Loading...';
 
-                          return ListTile(
+                        // ── FIXED SEARCH: Only show after we resolve real name/email ──
+                        if (_searchQuery.isNotEmpty &&
+                            !displayText.toLowerCase().contains(_searchQuery)) {
+                          return const SizedBox.shrink();
+                        }
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: ListTile(
                             leading: const Icon(Icons.event, size: 40),
-                            title: Text(displayEmail,
+                            title: Text(displayText,
                                 style: const TextStyle(
                                     fontWeight: FontWeight.w600)),
                             subtitle: Text(
@@ -148,16 +169,23 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(
-                                  assignedEmployeeId == null
-                                      ? 'Unassigned'
-                                      : 'Assigned',
-                                  style: TextStyle(
-                                    color: assignedEmployeeId == null
-                                        ? Colors.orange
-                                        : Colors.green,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                                FutureBuilder<String>(
+                                  future: _getEmployeeName(assignedEmployeeId),
+                                  builder: (context, empSnapshot) {
+                                    final employeeDisplay =
+                                        empSnapshot.data ?? 'Loading...';
+                                    final isAssigned =
+                                        assignedEmployeeId != null;
+                                    return Text(
+                                      employeeDisplay,
+                                      style: TextStyle(
+                                        color: isAssigned
+                                            ? Colors.green
+                                            : Colors.red,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    );
+                                  },
                                 ),
                                 const SizedBox(width: 8),
                                 PopupMenuButton<String>(
@@ -183,11 +211,11 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
                                 ),
                               ],
                             ),
-                            onTap: () => _showBookingDetails(
-                                context, data, displayEmail),
-                          );
-                        },
-                      ),
+                            onTap: () =>
+                                _showBookingDetails(context, data, displayText),
+                          ),
+                        );
+                      },
                     );
                   },
                 );
@@ -300,7 +328,7 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
   }
 
   void _showBookingDetails(
-      BuildContext context, Map<String, dynamic> data, String displayEmail) {
+      BuildContext context, Map<String, dynamic> data, String displayText) {
     final utcDate = (data['date'] as Timestamp).toDate();
     final alaskaDate = AlaskaDateUtils.toAlaskaDayKey(utcDate);
 
@@ -316,7 +344,7 @@ class _AdminManageBookingsScreenState extends State<AdminManageBookingsScreen> {
             Text('Booking Details',
                 style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: 16),
-            Text('Customer: $displayEmail'),
+            Text('Customer: $displayText'),
             Text('Date: ${DateFormat('MMM d, yyyy').format(alaskaDate)}'),
             Text(
                 'Time: ${data['cars']?[0]?['time'] ?? data['timeSlot'] ?? 'N/A'}'),
