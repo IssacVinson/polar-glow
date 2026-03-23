@@ -70,7 +70,7 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(height: 16),
 
               const Text(
-                'Professional car detailing across Anchorage, Wasilla, Eagle River, and JBER.\n'
+                'Professional car detailing across Eagle River, Anchorage, Wasilla, and JBER.\n'
                 'Book your next shine today!',
                 style: TextStyle(
                   fontSize: 18,
