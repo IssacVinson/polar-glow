@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+
 import '../models/app_user.dart';
 import '../models/service_model.dart';
 import '../models/booking_model.dart';
@@ -7,6 +9,8 @@ import '../utils/alaska_date_utils.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
+  final FirebaseFunctions _functions =
+      FirebaseFunctions.instanceFor(region: 'us-central1');
 
   // ====================== USERS ======================
   Future<String> getUserRole(String uid) async {
@@ -45,6 +49,44 @@ class FirestoreService {
     return await _db.collection('bookings').add(booking.toMap());
   }
 
+  // ====================== STRIPE PAYMENTS ======================
+  Future<Map<String, dynamic>> createPaymentIntent({
+    required String bookingId,
+    required double amount,
+  }) async {
+    try {
+      print(
+          "🔄 Calling createPaymentIntent → booking: $bookingId | amount: \$$amount");
+
+      final callable = _functions.httpsCallable('createPaymentIntent');
+      final result = await callable.call({
+        'bookingId': bookingId,
+        'amount': (amount * 100).round(),
+      });
+
+      print("✅ PaymentIntent created successfully!");
+      return result.data as Map<String, dynamic>;
+    } catch (e, stack) {
+      print("❌ CLOUD FUNCTION ERROR: $e");
+      print("Stack trace: $stack");
+      rethrow;
+    }
+  }
+
+  Future<void> updateBookingPaymentStatus({
+    required String bookingId,
+    required String paymentStatus,
+    String? paymentIntentId,
+  }) async {
+    final data = <String, dynamic>{
+      'paymentStatus': paymentStatus,
+    };
+    if (paymentIntentId != null) {
+      data['paymentIntentId'] = paymentIntentId;
+    }
+    await _db.collection('bookings').doc(bookingId).update(data);
+  }
+
   // ====================== CLOCK EVENTS ======================
   Future<List<ClockEventModel>> getClockEventsFuture(String uid) async {
     final snapshot = await _db
@@ -61,7 +103,6 @@ class FirestoreService {
 
   Future<void> addClockEvent(String uid, String type) async {
     final now = DateTime.now();
-    // Force Alaska day string so clock events group correctly in AKST (prevents any future shifts)
     final alaskaDay = AlaskaDateUtils.toAlaskaDayKey(now);
     final dateStr = AlaskaDateUtils.toDateString(alaskaDay);
 
@@ -74,7 +115,6 @@ class FirestoreService {
 
   Future<void> updateClockEventTimestamp(
       String uid, String docId, DateTime newTimestamp) async {
-    // Force Alaska day string
     final alaskaDay = AlaskaDateUtils.toAlaskaDayKey(newTimestamp);
     final dateStr = AlaskaDateUtils.toDateString(alaskaDay);
 

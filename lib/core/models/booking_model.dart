@@ -13,6 +13,10 @@ class BookingModel {
   final String notes;
   final String status;
 
+  // NEW: Stripe payment fields
+  final String paymentStatus; // 'unpaid' | 'paid' | 'cash_on_arrival'
+  final String? paymentIntentId;
+
   BookingModel({
     required this.id,
     required this.customerId,
@@ -24,6 +28,8 @@ class BookingModel {
     required this.address,
     required this.notes,
     this.status = 'pending',
+    this.paymentStatus = 'unpaid', // ← default
+    this.paymentIntentId,
   });
 
   factory BookingModel.fromMap(Map<String, dynamic> map, String id) {
@@ -38,6 +44,8 @@ class BookingModel {
       address: map['address'] ?? '',
       notes: map['notes'] ?? '',
       status: map['status'] ?? 'pending',
+      paymentStatus: map['paymentStatus'] ?? 'unpaid',
+      paymentIntentId: map['paymentIntentId'],
     );
   }
 
@@ -53,6 +61,8 @@ class BookingModel {
       'address': address,
       'notes': notes,
       'status': status,
+      'paymentStatus': paymentStatus, // ← NEW
+      'paymentIntentId': paymentIntentId, // ← NEW
     };
   }
 }

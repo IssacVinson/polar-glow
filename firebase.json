@@ -1,1 +1,28 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"polar-glow-backend","appId":"1:481861301714:android:ee027400e36675491a440b","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"polar-glow-backend","configurations":{"android":"1:481861301714:android:ee027400e36675491a440b","ios":"1:481861301714:ios:01ed06d74cf827181a440b","macos":"1:481861301714:ios:01ed06d74cf827181a440b","web":"1:481861301714:web:80a74e1da81b3b291a440b","windows":"1:481861301714:web:ad31b6b12e867cbd1a440b"}}}}}}
+{
+  "functions": {
+    "source": "functions"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "polar-glow-backend",
+          "appId": "1:481861301714:android:ee027400e36675491a440b",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "polar-glow-backend",
+          "configurations": {
+            "android": "1:481861301714:android:ee027400e36675491a440b",
+            "ios": "1:481861301714:ios:01ed06d74cf827181a440b",
+            "macos": "1:481861301714:ios:01ed06d74cf827181a440b",
+            "web": "1:481861301714:web:80a74e1da81b3b291a440b",
+            "windows": "1:481861301714:web:ad31b6b12e867cbd1a440b"
+          }
+        }
+      }
+    }
+  }
+}

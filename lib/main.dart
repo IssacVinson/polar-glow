@@ -1,17 +1,21 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
-import 'Providers/auth_provider.dart'; // ← still points to your updated provider
-import 'auth_wrapper.dart'; // ← NEW: points to the clean root-level file we created
+import 'Providers/auth_provider.dart';
+import 'auth_wrapper.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Google Sign In block completely removed — app will launch normally again
+  // === PASTE YOUR FULL PUBLISHABLE KEY HERE === Paste the SK in functions/index.js
+  Stripe.publishableKey =
+      'pk_test_51TEEFFAmlYRxjwqhtzdq6OIIFgO1Bed6I8FN0GjqJhAiigLemWKPJcLhxwrnYt25al8ipCx65ANYdyYTPdNJGoNX00MgYDZmFQ';
+  await Stripe.instance.applySettings();
 
   runApp(
     ChangeNotifierProvider(
