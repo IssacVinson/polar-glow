@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -11,11 +12,13 @@ import 'auth_wrapper.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Load environment variables from .env file
+  await dotenv.load(fileName: ".env");
+
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // === PASTE YOUR FULL PUBLISHABLE KEY HERE === Paste the SK in functions/index.js
-  Stripe.publishableKey =
-      'pk_live_51TEEF1AnOPvIVmjpsrLDtyNdf0Y4QnhxiZOqqFlOC0rKdjvdVbFW8LppCZi7TswyV2gX11y335KN2e5VXb9WvwKd00g6CfPKY6';
+  // Load Stripe publishable key from .env (never committed to GitHub)
+  Stripe.publishableKey = dotenv.env['STRIPE_PUBLISHABLE_KEY']!;
   await Stripe.instance.applySettings();
 
   runApp(
@@ -56,7 +59,6 @@ class PolarGlowApp extends StatelessWidget {
             letterSpacing: -0.5,
           ),
         ),
-        // FIXED: Use CardThemeData (new API)
         cardTheme: CardThemeData(
           color: Colors.blueGrey[800],
           elevation: 6,
@@ -103,7 +105,6 @@ class PolarGlowApp extends StatelessWidget {
             borderSide: BorderSide(color: Colors.cyan[400]!, width: 2),
           ),
         ),
-        // FIXED: Use DialogThemeData (new API)
         dialogTheme: DialogThemeData(
           backgroundColor: Colors.blueGrey[850],
           shape: RoundedRectangleBorder(
