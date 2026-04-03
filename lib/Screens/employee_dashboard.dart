@@ -1,3 +1,6 @@
+// lib/Screens/employee_dashboard.dart
+// UPDATED FILE — Replace your entire employee_dashboard.dart with this exact code
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -8,6 +11,7 @@ import 'employee_hours_pay_screen.dart';
 import 'employee_finances_screen.dart';
 import 'profile_screen.dart';
 import 'employee_mileage_screen.dart';
+import 'reviews_screen.dart'; // ← NEW: Reviews feature for employees
 
 class EmployeeDashboard extends StatelessWidget {
   const EmployeeDashboard({super.key});
@@ -103,6 +107,15 @@ class EmployeeDashboard extends StatelessWidget {
                           MaterialPageRoute(
                               builder: (_) => EmployeeFinancesScreen(
                                   employeeId: currentUserId)),
+                        );
+                      }),
+                      // ── NEW: My Reviews card ──
+                      _buildCard(context, Icons.rate_review_rounded,
+                          'My Reviews', Colors.amber, () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ReviewsScreen()),
                         );
                       }),
                       _buildCard(context, Icons.person_outline, 'Profile',

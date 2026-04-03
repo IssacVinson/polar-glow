@@ -1,9 +1,13 @@
+// lib/Screens/customer_my_bookings_screen.dart
+// UPDATED FILE — Replace your entire customer_my_bookings_screen.dart with this exact code
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../core/utils/alaska_date_utils.dart';
+import 'feedback_screen.dart'; // ← NEW: hybrid feedback screen
 
 class CustomerMyBookingsScreen extends StatefulWidget {
   const CustomerMyBookingsScreen({super.key});
@@ -222,8 +226,15 @@ class _CustomerMyBookingsScreenState extends State<CustomerMyBookingsScreen> {
                   style:
                       ElevatedButton.styleFrom(backgroundColor: Colors.amber),
                   onPressed: () {
-                    Navigator.pop(ctx);
-                    _showReviewDialog(bookingId, data);
+                    Navigator.pop(ctx); // close the details modal
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => FeedbackScreen(
+                          preselectedBookingId: bookingId, // ← hybrid magic
+                        ),
+                      ),
+                    );
                   },
                 ),
               ),
@@ -257,110 +268,6 @@ class _CustomerMyBookingsScreenState extends State<CustomerMyBookingsScreen> {
     return {'name': 'Unknown', 'phone': 'N/A', 'email': 'N/A'};
   }
 
-  void _showReviewDialog(String bookingId, Map<String, dynamic> data) {
-    // (same review dialog as before — unchanged)
-    final detailerController = TextEditingController();
-    final managementController = TextEditingController();
-    final appController = TextEditingController();
-    int detailerRating = 5;
-    int managementRating = 5;
-    int appRating = 5;
-
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Write a Review'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              _StarRating(
-                  title: 'Detailer',
-                  value: detailerRating,
-                  onChanged: (v) => detailerRating = v),
-              _StarRating(
-                  title: 'Management',
-                  value: managementRating,
-                  onChanged: (v) => managementRating = v),
-              _StarRating(
-                  title: 'App Experience',
-                  value: appRating,
-                  onChanged: (v) => appRating = v),
-              const SizedBox(height: 16),
-              TextField(
-                  controller: detailerController,
-                  decoration:
-                      const InputDecoration(labelText: 'Feedback for Detailer'),
-                  maxLines: 2),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: managementController,
-                  decoration: const InputDecoration(
-                      labelText: 'Feedback for Management'),
-                  maxLines: 2),
-              const SizedBox(height: 8),
-              TextField(
-                  controller: appController,
-                  decoration:
-                      const InputDecoration(labelText: 'Feedback for the App'),
-                  maxLines: 2),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
-          TextButton(
-            onPressed: () async {
-              await FirebaseFirestore.instance.collection('reviews').add({
-                'bookingId': bookingId,
-                'customerId': FirebaseAuth.instance.currentUser!.uid,
-                'date': Timestamp.now(),
-                'detailerRating': detailerRating,
-                'managementRating': managementRating,
-                'appRating': appRating,
-                'detailerFeedback': detailerController.text.trim(),
-                'managementFeedback': managementController.text.trim(),
-                'appFeedback': appController.text.trim(),
-              });
-              if (mounted) {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Thank you for your review! ❤️')));
-              }
-            },
-            child: const Text('Submit Review'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StarRating extends StatelessWidget {
-  final String title;
-  final int value;
-  final ValueChanged<int> onChanged;
-
-  const _StarRating(
-      {required this.title, required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-        Row(
-          children: List.generate(
-              5,
-              (i) => IconButton(
-                    icon: Icon(i < value ? Icons.star : Icons.star_border,
-                        color: Colors.amber),
-                    onPressed: () => onChanged(i + 1),
-                  )),
-        ),
-      ],
-    );
-  }
+  // OLD review dialog and _StarRating have been removed
+  // (everything now lives cleanly in the new FeedbackScreen)
 }

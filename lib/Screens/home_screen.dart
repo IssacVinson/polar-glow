@@ -1,9 +1,13 @@
+// lib/Screens/home_screen.dart
+// UPDATED FILE — Replace your entire home_screen.dart with this exact code
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
 import 'services_screen.dart';
 import 'customer_my_bookings_screen.dart'; // ← NEW
+import 'feedback_screen.dart'; // ← NEW (added for the hybrid feedback flow)
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -108,7 +112,7 @@ class HomeScreen extends StatelessWidget {
 
               const SizedBox(height: 20),
 
-              // Changed to View My Bookings
+              // View My Bookings
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -129,6 +133,35 @@ class HomeScreen extends StatelessWidget {
                       context,
                       MaterialPageRoute(
                           builder: (_) => const CustomerMyBookingsScreen()),
+                    );
+                  },
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              // NEW: Give Feedback button (hybrid entry point)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.feedback_rounded, color: Colors.amber),
+                  label: const Text(
+                    'Give Feedback',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    side: const BorderSide(color: Colors.amber, width: 2),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const FeedbackScreen(),
+                      ),
                     );
                   },
                 ),

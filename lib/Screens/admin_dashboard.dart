@@ -1,3 +1,6 @@
+// lib/Screens/admin_dashboard.dart
+// UPDATED FILE — Replace your entire admin_dashboard.dart with this exact code
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -9,7 +12,8 @@ import 'admin_services_screen.dart';
 import 'admin_payroll_overview_screen.dart';
 import 'profile_screen.dart';
 import 'admin_view_clients_screen.dart';
-import 'admin_finance_screen.dart'; // ← NEW
+import 'admin_finance_screen.dart';
+import 'reviews_screen.dart'; // ← NEW: Reviews feature
 
 class AdminDashboard extends StatelessWidget {
   const AdminDashboard({super.key});
@@ -150,6 +154,18 @@ class AdminDashboard extends StatelessWidget {
                         context,
                         MaterialPageRoute(
                             builder: (_) => const AdminFinanceScreen()),
+                      ),
+                    ),
+                    // ── NEW REVIEWS CARD ──
+                    _TaskCard(
+                      icon: Icons.rate_review_rounded,
+                      title: 'All Reviews',
+                      subtitle: 'Customer feedback & ratings',
+                      color: Colors.amber,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => const ReviewsScreen()),
                       ),
                     ),
                     _TaskCard(
