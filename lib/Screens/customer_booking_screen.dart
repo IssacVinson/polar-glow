@@ -1,5 +1,5 @@
 // lib/screens/customer_booking_screen.dart
-// UPDATED FILE — Replace your entire customer_booking_screen.dart with this exact code
+// Uses dedicated CustomerCalendarView with green available-slot bubbles
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -7,12 +7,11 @@ import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:google_places_flutter/google_places_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import 'package:table_calendar/table_calendar.dart';
-
 import '../core/models/booking_model.dart';
 import '../core/services/firestore_service.dart';
 import '../core/utils/alaska_date_utils.dart';
 import '../Providers/auth_provider.dart';
+import 'customer_calendar_view.dart';
 
 class CustomerBookingScreen extends StatefulWidget {
   final List<Map<String, dynamic>> selectedServices;
@@ -43,8 +42,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   String? _selectedDetailerId;
 
   List<Map<String, dynamic>> _employees = [];
-  late Set<DateTime> _availableDays;
-  Map<DateTime, int> _slotCounts = {};
   List<Map<String, dynamic>> _availableSlots = [];
   bool _loadingSlots = false;
   bool _isProcessingPayment = false;
@@ -61,13 +58,10 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   @override
   void initState() {
     super.initState();
-    _availableDays = {};
-    _slotCounts = {};
     _selectedDay = DateTime.now();
     _focusedDay = DateTime.now();
     _updateCarControllers(_numCars);
     _loadEmployees();
-    _loadAvailableDays();
   }
 
   void _updateCarControllers(int count) {
@@ -103,49 +97,14 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
           };
         }).toList();
       });
-    }
-  }
 
-  Future<void> _loadAvailableDays() async {
-    final now = DateTime.now();
-    final futures = <Future>[];
-
-    for (final emp in _employees) {
-      final employeeId = emp['id'] as String;
-
-      for (int i = 0; i < 60; i++) {
-        final date =
-            DateTime(now.year, now.month, now.day).add(Duration(days: i));
-        final dateStr = AlaskaDateUtils.toDateString(date);
-
-        futures.add(FirebaseFirestore.instance
-            .collection('users')
-            .doc(employeeId)
-            .collection('availability')
-            .doc(dateStr)
-            .get()
-            .then((doc) {
-          if (doc.exists) {
-            final data = doc.data()!;
-            final regions = List<String>.from(data['regions'] ?? []);
-            final timeSlots = List<String>.from(data['timeSlots'] ?? []);
-
-            if (regions.contains(widget.selectedRegion) &&
-                timeSlots.isNotEmpty) {
-              if (mounted) {
-                setState(() {
-                  _availableDays.add(date);
-                  _slotCounts[date] = timeSlots.length;
-                });
-              }
-            }
-          }
-        }));
+      // Load slots for the initial selected day
+      if (_selectedDay != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _loadSlotsForDay(_selectedDay!);
+        });
       }
     }
-
-    await Future.wait(futures);
-    if (mounted) setState(() {});
   }
 
   Future<void> _loadSlotsForDay(DateTime date) async {
@@ -396,7 +355,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Selected Services
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -431,8 +389,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // How many cars?
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -464,8 +420,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // Car Details
                     ...List.generate(_numCars, (index) {
                       return Card(
                         margin: const EdgeInsets.only(bottom: 16),
@@ -493,15 +447,12 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                         ),
                       );
                     }),
-
                     const SizedBox(height: 24),
-
-                    // Google Places Autocomplete
                     GooglePlaceAutoCompleteTextField(
                       googleAPIKey: "AIzaSyDxrc2tPDR-SpPhC5rBZynOPxnbBvN2oGc",
                       textEditingController: _addressController,
                       inputDecoration: const InputDecoration(
-                        labelText: 'Service Location / Address',
+                        labelText: 'Address',
                         hintText: 'Start typing your address...',
                         border: OutlineInputBorder(),
                       ),
@@ -512,8 +463,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                       isLatLngRequired: false,
                     ),
                     const SizedBox(height: 16),
-
-                    // Notes
                     TextFormField(
                       controller: _notesController,
                       decoration: const InputDecoration(
@@ -522,8 +471,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                       maxLines: 3,
                     ),
                     const SizedBox(height: 24),
-
-                    // Calendar
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
@@ -534,56 +481,12 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                                 style: Theme.of(context).textTheme.titleMedium),
                             const SizedBox(height: 12),
                             SizedBox(
-                              height: 380,
-                              child: TableCalendar(
-                                firstDay: DateTime.now(),
-                                lastDay: DateTime.now()
-                                    .add(const Duration(days: 365)),
-                                focusedDay: _focusedDay,
-                                selectedDayPredicate: (day) =>
-                                    isSameDay(_selectedDay, day),
+                              height: 420, // ← increased to fix overflow
+                              child: CustomerCalendarView(
+                                selectedRegion: widget.selectedRegion,
                                 onDaySelected: _onDaySelected,
-                                headerStyle: const HeaderStyle(
-                                  formatButtonVisible: false,
-                                  titleCentered: true,
-                                  leftChevronVisible: true,
-                                  rightChevronVisible: true,
-                                ),
-                                calendarFormat: CalendarFormat.month,
-                                calendarBuilders: CalendarBuilders(
-                                  markerBuilder: (context, day, _) {
-                                    final count = _slotCounts[DateTime(
-                                            day.year, day.month, day.day)] ??
-                                        0;
-                                    if (count > 0) {
-                                      return Positioned(
-                                        right: 6,
-                                        top: 6,
-                                        child: Container(
-                                          padding: const EdgeInsets.all(4),
-                                          decoration: const BoxDecoration(
-                                              color: Colors.green,
-                                              shape: BoxShape.circle),
-                                          child: Text(count.toString(),
-                                              style: const TextStyle(
-                                                  color: Colors.white,
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold)),
-                                        ),
-                                      );
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                calendarStyle: CalendarStyle(
-                                  todayDecoration: BoxDecoration(
-                                      color:
-                                          colorScheme.primary.withOpacity(0.3),
-                                      shape: BoxShape.circle),
-                                  selectedDecoration: BoxDecoration(
-                                      color: colorScheme.primary,
-                                      shape: BoxShape.circle),
-                                ),
+                                selectedDay: _selectedDay,
+                                focusedDay: _focusedDay,
                               ),
                             ),
                           ],
@@ -591,8 +494,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                       ),
                     ),
                     const SizedBox(height: 24),
-
-                    // Available Times
                     Card(
                       child: Padding(
                         padding: const EdgeInsets.all(16),
