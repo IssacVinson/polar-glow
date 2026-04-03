@@ -1,3 +1,10 @@
+// lib/screens/profile_screen.dart
+// FULL PREMIUM UPGRADE: Polar Glow dark theme + luxurious layout
+// - Icy cyan accents + glowing elevated cards
+// - Modern dark TextFields with premium styling
+// - Clean separation of profile info and password change
+// - All original logic (PhoneFormatter, username availability, password re-auth, Firestore updates) preserved 100%
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -52,7 +59,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _usernameError;
   String? _originalUsername;
 
-  // Proper email validation
+  // Polar Glow brand accent
+  Color get _accentColor => const Color(0xFF00E5FF);
+
   @override
   void initState() {
     super.initState();
@@ -215,7 +224,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Edit Profile')),
+      backgroundColor: Colors.grey[900],
+      appBar: AppBar(
+        title: const Text(
+          'Edit Profile',
+          style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
+        ),
+        backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        centerTitle: true,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
@@ -223,16 +242,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 8),
 
               // Username
               TextFormField(
                 controller: _usernameController,
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   labelText: 'Username',
+                  labelStyle: const TextStyle(color: Colors.white70),
                   errorText: _usernameError,
                   helperText:
                       '4-20 characters, letters/numbers/underscores only',
+                  helperStyle: const TextStyle(color: Colors.white54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  filled: true,
+                  fillColor: Colors.black12,
                 ),
                 validator: (value) {
                   if (value == null || value.length < 4 || value.length > 20) {
@@ -244,92 +271,174 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Full Name
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Full Name'),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Full Name',
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  filled: true,
+                  fillColor: Colors.black12,
+                ),
                 validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Phone Number
               TextFormField(
                 controller: _phoneController,
-                decoration: const InputDecoration(labelText: 'Phone Number'),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Phone Number',
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  filled: true,
+                  fillColor: Colors.black12,
+                ),
                 keyboardType: TextInputType.phone,
                 inputFormatters: [PhoneFormatter()],
                 validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Email (read-only)
               TextFormField(
                 initialValue: FirebaseAuth.instance.currentUser?.email,
-                decoration:
-                    const InputDecoration(labelText: 'Email (cannot change)'),
+                style: const TextStyle(color: Colors.white70),
+                decoration: InputDecoration(
+                  labelText: 'Email (cannot change)',
+                  labelStyle: const TextStyle(color: Colors.white54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  filled: true,
+                  fillColor: Colors.black12,
+                ),
                 enabled: false,
               ),
-              const SizedBox(height: 32),
 
-              // ==================== CHANGE PASSWORD SECTION ====================
-              const Text(
-                'Change Password',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 40),
 
-              TextFormField(
-                controller: _currentPasswordController,
-                decoration:
-                    const InputDecoration(labelText: 'Current Password'),
-                obscureText: true,
-              ),
-              const SizedBox(height: 12),
-
-              TextFormField(
-                controller: _newPasswordController,
-                decoration: const InputDecoration(labelText: 'New Password'),
-                obscureText: true,
-              ),
-              const SizedBox(height: 12),
-
-              TextFormField(
-                controller: _confirmPasswordController,
-                decoration:
-                    const InputDecoration(labelText: 'Confirm New Password'),
-                obscureText: true,
-              ),
-              const SizedBox(height: 16),
-
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _updatePassword,
-                  style:
-                      ElevatedButton.styleFrom(backgroundColor: Colors.orange),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Update Password'),
+              // Change Password Section
+              Card(
+                elevation: 8,
+                shadowColor: _accentColor.withOpacity(0.2),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                color: Colors.grey[850],
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Change Password',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                      ),
+                      const SizedBox(height: 20),
+                      TextFormField(
+                        controller: _currentPasswordController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Current Password',
+                          labelStyle: const TextStyle(color: Colors.white70),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          filled: true,
+                          fillColor: Colors.black12,
+                        ),
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _newPasswordController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'New Password',
+                          labelStyle: const TextStyle(color: Colors.white70),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          filled: true,
+                          fillColor: Colors.black12,
+                        ),
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: _confirmPasswordController,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: InputDecoration(
+                          labelText: 'Confirm New Password',
+                          labelStyle: const TextStyle(color: Colors.white70),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          filled: true,
+                          fillColor: Colors.black12,
+                        ),
+                        obscureText: true,
+                      ),
+                      const SizedBox(height: 24),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          onPressed: _isLoading ? null : _updatePassword,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.orange,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                          ),
+                          child: _isLoading
+                              ? const CircularProgressIndicator(
+                                  color: Colors.black)
+                              : const Text('Update Password'),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-              // =================================================================
 
               const SizedBox(height: 32),
 
               if (_errorMessage != null)
-                Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.redAccent),
+                  textAlign: TextAlign.center,
+                ),
 
               const SizedBox(height: 16),
 
+              // Save Profile Button
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.save),
+                  label: const Text(
+                    'Save Profile Changes',
+                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
+                  ),
                   onPressed: _isLoading ? null : _saveProfile,
-                  child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Save Profile Changes'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accentColor,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                  ),
                 ),
               ),
             ],

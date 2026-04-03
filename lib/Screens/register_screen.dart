@@ -1,3 +1,10 @@
+// lib/screens/register_screen.dart
+// FULL PREMIUM UPGRADE: Polar Glow dark theme + luxurious layout
+// - Icy cyan accents + glowing elevated form
+// - Modern dark TextFields with premium styling
+// - Clean header with logo and welcome text
+// - All original logic (PhoneFormatter, username availability, email validation, Firebase registration, usernames collection, auto-login) preserved 100%
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -51,6 +58,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   // Proper email validation
   final _emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+
+  // Polar Glow brand accent
+  Color get _accentColor => const Color(0xFF00E5FF);
 
   Future<bool> _isUsernameAvailable(String username) async {
     try {
@@ -130,23 +140,42 @@ class _RegisterScreenState extends State<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Create Account')),
+      backgroundColor: Colors.grey[900],
+      appBar: AppBar(
+        title: const Text(
+          'Create Account',
+          style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
+        ),
+        backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        centerTitle: true,
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 20),
+              const SizedBox(height: 8),
 
               // Username
               TextFormField(
                 controller: _usernameController,
+                style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   labelText: 'Username',
+                  labelStyle: const TextStyle(color: Colors.white70),
                   errorText: _usernameError,
                   helperText:
                       '4-20 characters, letters/numbers/underscores only',
+                  helperStyle: const TextStyle(color: Colors.white54),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  filled: true,
+                  fillColor: Colors.black12,
                 ),
                 validator: (value) {
                   if (value == null || value.length < 4 || value.length > 20) {
@@ -158,30 +187,57 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Full Name
               TextFormField(
                 controller: _nameController,
-                decoration: const InputDecoration(labelText: 'Full Name'),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Full Name',
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  filled: true,
+                  fillColor: Colors.black12,
+                ),
                 validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // Phone (with live formatting)
+              // Phone Number
               TextFormField(
                 controller: _phoneController,
-                decoration: const InputDecoration(labelText: 'Phone Number'),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Phone Number',
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  filled: true,
+                  fillColor: Colors.black12,
+                ),
                 keyboardType: TextInputType.phone,
                 inputFormatters: [PhoneFormatter()],
                 validator: (v) => v!.isEmpty ? 'Required' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
-              // Email with proper format validation
+              // Email
               TextFormField(
                 controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Email',
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  filled: true,
+                  fillColor: Colors.black12,
+                ),
                 keyboardType: TextInputType.emailAddress,
                 validator: (v) {
                   if (v == null || v.isEmpty) return 'Required';
@@ -191,42 +247,80 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   return null;
                 },
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Password
               TextFormField(
                 controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Password'),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Password',
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  filled: true,
+                  fillColor: Colors.black12,
+                ),
                 obscureText: true,
                 validator: (v) =>
                     v!.length < 6 ? 'At least 6 characters' : null,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
 
               // Confirm Password
               TextFormField(
                 controller: _confirmPasswordController,
-                decoration:
-                    const InputDecoration(labelText: 'Confirm Password'),
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  labelText: 'Confirm Password',
+                  labelStyle: const TextStyle(color: Colors.white70),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  filled: true,
+                  fillColor: Colors.black12,
+                ),
                 obscureText: true,
                 validator: (v) => v != _passwordController.text
                     ? 'Passwords do not match'
                     : null,
               ),
+
               const SizedBox(height: 32),
 
               if (_errorMessage != null)
-                Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                Text(
+                  _errorMessage!,
+                  style: const TextStyle(color: Colors.redAccent),
+                  textAlign: TextAlign.center,
+                ),
 
               const SizedBox(height: 16),
 
+              // Create Account Button
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                height: 58,
+                child: FilledButton(
                   onPressed: _isLoading ? null : _register,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _accentColor,
+                    foregroundColor: Colors.black,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    elevation: 12,
+                  ),
                   child: _isLoading
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : const Text('Create Account'),
+                      ? const CircularProgressIndicator(color: Colors.black)
+                      : const Text(
+                          'Create Account',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                 ),
               ),
             ],
@@ -234,5 +328,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _nameController.dispose();
+    _phoneController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
   }
 }

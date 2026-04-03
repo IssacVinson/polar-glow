@@ -1,8 +1,15 @@
+// lib/screens/login_screen.dart
+// FULL PREMIUM UPGRADE: Polar Glow dark theme + luxurious layout
+// - Icy cyan accents + glowing elements
+// - Premium dark background and elevated form
+// - Modern typography and generous spacing
+// - All original logic (email/username login, FirebaseAuth, Register navigation) preserved 100%
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import 'register_screen.dart'; // ← new
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,6 +23,9 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordController = TextEditingController();
   bool _isLoading = false;
   String? _errorMessage;
+
+  // Polar Glow brand accent
+  Color get _accentColor => const Color(0xFF00E5FF);
 
   Future<void> _submitLogin() async {
     setState(() {
@@ -58,9 +68,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return Scaffold(
+      backgroundColor: Colors.grey[900],
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -68,65 +77,113 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset('assets/images/logo.png', width: 160),
+                // Logo
+                Image.asset(
+                  'assets/images/logo.png',
+                  width: 180,
+                ),
                 const SizedBox(height: 48),
+
+                // Welcome text
                 Text(
                   'Welcome Back',
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                  ),
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 0.5,
+                      ),
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 8),
+                Text(
+                  'Sign in to Polar Glow Detailing',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: Colors.white70,
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+
+                const SizedBox(height: 48),
+
+                // Identifier field (Email or Username)
                 TextField(
                   controller: _identifierController,
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Email or Username',
-                    prefixIcon: Icon(Icons.person, color: colorScheme.primary),
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    prefixIcon: Icon(Icons.person, color: _accentColor),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(color: Colors.white24),
                     ),
                     filled: true,
-                    fillColor: colorScheme.surfaceContainerLowest,
+                    fillColor: Colors.black12,
                   ),
                 ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 20),
+
+                // Password field
                 TextField(
                   controller: _passwordController,
+                  obscureText: true,
+                  style: const TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     labelText: 'Password',
-                    prefixIcon: Icon(Icons.lock, color: colorScheme.primary),
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    prefixIcon: Icon(Icons.lock, color: _accentColor),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(20),
+                      borderSide: const BorderSide(color: Colors.white24),
                     ),
                     filled: true,
-                    fillColor: colorScheme.surfaceContainerLowest,
+                    fillColor: Colors.black12,
                   ),
-                  obscureText: true,
                 ),
+
+                // Error message
                 if (_errorMessage != null)
                   Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.only(top: 20),
                     child: Text(
                       _errorMessage!,
-                      style: TextStyle(color: Colors.red[300]),
+                      style: const TextStyle(
+                          color: Colors.redAccent, fontSize: 15),
                       textAlign: TextAlign.center,
                     ),
                   ),
-                const SizedBox(height: 24),
-                if (_isLoading)
-                  const CircularProgressIndicator()
-                else
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: _submitLogin,
-                      child: const Text('Login'),
+
+                const SizedBox(height: 40),
+
+                // Login Button
+                SizedBox(
+                  width: double.infinity,
+                  height: 58,
+                  child: FilledButton(
+                    onPressed: _isLoading ? null : _submitLogin,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _accentColor,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      elevation: 12,
                     ),
+                    child: _isLoading
+                        ? const CircularProgressIndicator(color: Colors.black)
+                        : const Text(
+                            'Login',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
-                const SizedBox(height: 16),
+                ),
+
+                const SizedBox(height: 24),
+
+                // Register link
                 TextButton(
                   onPressed: () => Navigator.push(
                     context,
@@ -134,7 +191,11 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   child: Text(
                     "Don't have an account? Sign Up",
-                    style: TextStyle(color: colorScheme.primary),
+                    style: TextStyle(
+                      color: _accentColor,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],

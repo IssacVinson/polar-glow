@@ -1,3 +1,10 @@
+// lib/screens/employee_availability_screen.dart
+// FIXED: Removed 'const' from BoxDecoration (Colors.grey[900] is not a compile-time constant)
+// FULL PREMIUM UPGRADE: Polar Glow dark theme + luxurious layout
+// - Icy cyan glow accents + elevated glowing cards everywhere
+// - Modern premium typography, generous spacing, and visual hierarchy
+// - All original logic, overlap validation, preview, editing, Firestore writes, etc. preserved 100%
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -31,6 +38,9 @@ class _EmployeeAvailabilityScreenState
 
   List<Map<String, dynamic>> _previewDays = [];
   bool _isApplying = false;
+
+  // Polar Glow brand accent
+  Color get _accentColor => const Color(0xFF00E5FF);
 
   @override
   void initState() {
@@ -177,27 +187,49 @@ class _EmployeeAvailabilityScreenState
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            return Padding(
+            return Container(
               padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom + 16,
-                left: 16,
-                right: 16,
-                top: 20,
+                bottom: MediaQuery.of(context).viewInsets.bottom + 24,
+                left: 24,
+                right: 24,
+                top: 24,
+              ),
+              decoration: BoxDecoration(
+                // ← const removed to fix invalid constant error
+                color: Colors.grey[900],
+                borderRadius:
+                    const BorderRadius.vertical(top: Radius.circular(32)),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Center(
+                    child: Container(
+                      width: 48,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
                   Text(
                     _dateFormat.format(date),
-                    style: Theme.of(context).textTheme.titleLarge,
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                   ),
                   const SizedBox(height: 24),
                   const Text('Time Slots',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -205,12 +237,16 @@ class _EmployeeAvailabilityScreenState
                       ...editingSlots.map(
                         (slot) => Chip(
                           label: Text(slot),
+                          backgroundColor: Colors.grey[800],
+                          deleteIconColor: _accentColor,
                           onDeleted: () =>
                               setModalState(() => editingSlots.remove(slot)),
                         ),
                       ),
                       ActionChip(
+                        avatar: Icon(Icons.add, color: _accentColor),
                         label: const Text('Add Slot'),
+                        backgroundColor: Colors.grey[800],
                         onPressed: () async {
                           final slot = await _showAddTimeSlotDialog();
                           if (slot != null && !editingSlots.contains(slot)) {
@@ -222,7 +258,8 @@ class _EmployeeAvailabilityScreenState
                   ),
                   const SizedBox(height: 24),
                   const Text('Regions',
-                      style: TextStyle(fontWeight: FontWeight.bold)),
+                      style: TextStyle(
+                          fontWeight: FontWeight.bold, color: Colors.white)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
@@ -231,6 +268,8 @@ class _EmployeeAvailabilityScreenState
                       return FilterChip(
                         label: Text(r),
                         selected: selected,
+                        selectedColor: _accentColor.withOpacity(0.2),
+                        checkmarkColor: _accentColor,
                         onSelected: (sel) {
                           setModalState(() {
                             if (sel) {
@@ -251,7 +290,7 @@ class _EmployeeAvailabilityScreenState
                         onPressed: () => Navigator.pop(context),
                         child: const Text('Cancel'),
                       ),
-                      ElevatedButton(
+                      FilledButton(
                         onPressed: () async {
                           await FirebaseFirestore.instance
                               .collection('users')
@@ -278,6 +317,7 @@ class _EmployeeAvailabilityScreenState
                       ),
                     ],
                   ),
+                  const SizedBox(height: 12),
                 ],
               ),
             );
@@ -362,35 +402,63 @@ class _EmployeeAvailabilityScreenState
         _selectedRegions.isNotEmpty;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Set Availability')),
+      backgroundColor: Colors.grey[900],
+      appBar: AppBar(
+        title: const Text(
+          'Set Availability',
+          style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
+        ),
+        backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        centerTitle: true,
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Recurring Availability Card
             Card(
-              elevation: 3,
+              elevation: 12,
+              shadowColor: _accentColor.withOpacity(0.3),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              color: Colors.grey[850],
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.all(24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Set Recurring Availability',
-                      style: Theme.of(context).textTheme.titleLarge,
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today,
+                            color: _accentColor, size: 28),
+                        const SizedBox(width: 12),
+                        Text(
+                          'Set Recurring Availability',
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.white,
+                                  ),
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Applies to selected days only. All other days in the period will be cleared (no availability).',
+                      'Applies to selected days only. All other days in the period will be cleared.',
                       style: Theme.of(context)
                           .textTheme
                           .bodyMedium
-                          ?.copyWith(color: Colors.grey[600]),
+                          ?.copyWith(color: Colors.white70),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                     const Text('Days of the Week',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -408,8 +476,8 @@ class _EmployeeAvailabilityScreenState
                             ][i - 1]),
                             selected:
                                 _selectedDaysOfWeek.contains(i.toString()),
-                            selectedColor: Colors.blue[100],
-                            checkmarkColor: Colors.blue[800],
+                            selectedColor: _accentColor.withOpacity(0.2),
+                            checkmarkColor: _accentColor,
                             onSelected: (selected) {
                               setState(() {
                                 final dayStr = i.toString();
@@ -423,10 +491,11 @@ class _EmployeeAvailabilityScreenState
                           ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                     const Text('Time Slots',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -434,22 +503,25 @@ class _EmployeeAvailabilityScreenState
                         ..._selectedTimeSlots.map(
                           (slot) => Chip(
                             label: Text(slot),
-                            backgroundColor: Colors.blue[50],
+                            backgroundColor: Colors.grey[800],
+                            deleteIconColor: _accentColor,
                             onDeleted: () =>
                                 setState(() => _selectedTimeSlots.remove(slot)),
                           ),
                         ),
                         ActionChip(
-                          avatar: const Icon(Icons.add, size: 18),
+                          avatar: Icon(Icons.add, color: _accentColor),
                           label: const Text('Add Slot'),
+                          backgroundColor: Colors.grey[800],
                           onPressed: _addTimeSlot,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                     const Text('Regions',
-                        style: TextStyle(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, color: Colors.white)),
+                    const SizedBox(height: 12),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
@@ -458,8 +530,8 @@ class _EmployeeAvailabilityScreenState
                         return FilterChip(
                           label: Text(r),
                           selected: selected,
-                          selectedColor: Colors.green[100],
-                          checkmarkColor: Colors.green[800],
+                          selectedColor: _accentColor.withOpacity(0.2),
+                          checkmarkColor: _accentColor,
                           onSelected: (sel) {
                             setState(() {
                               if (sel) {
@@ -472,14 +544,18 @@ class _EmployeeAvailabilityScreenState
                         );
                       }).toList(),
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 32),
                     Row(
                       children: [
                         const Text('Apply to next',
-                            style: TextStyle(fontWeight: FontWeight.bold)),
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white)),
                         const SizedBox(width: 12),
                         DropdownButton<int>(
                           value: _applyForWeeks,
+                          dropdownColor: Colors.grey[850],
+                          style: const TextStyle(color: Colors.white),
                           items: [2, 4, 6, 8, 12]
                               .map((w) => DropdownMenuItem(
                                   value: w, child: Text('$w weeks')))
@@ -490,25 +566,26 @@ class _EmployeeAvailabilityScreenState
                         ),
                       ],
                     ),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 40),
                     SizedBox(
                       width: double.infinity,
-                      child: ElevatedButton.icon(
+                      child: FilledButton.icon(
                         icon: _isApplying
                             ? const SizedBox(
                                 width: 20,
                                 height: 20,
                                 child: CircularProgressIndicator(
-                                    color: Colors.white, strokeWidth: 2))
+                                    color: Colors.black, strokeWidth: 2))
                             : const Icon(Icons.save),
                         label: Text(_isApplying
                             ? 'Saving...'
                             : 'Apply Recurring Availability'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
+                        style: FilledButton.styleFrom(
                           backgroundColor: canApply && !_isApplying
-                              ? null
-                              : Colors.grey[400],
+                              ? _accentColor
+                              : Colors.grey[600],
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 18),
                         ),
                         onPressed: canApply && !_isApplying
                             ? _applyAvailability
@@ -519,12 +596,22 @@ class _EmployeeAvailabilityScreenState
                 ),
               ),
             ),
-            const SizedBox(height: 32),
-            Text('Next 30 Days Preview',
-                style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: 8),
+
+            const SizedBox(height: 40),
+
+            // Preview
+            Text(
+              'Next 30 Days Preview',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+            ),
+            const SizedBox(height: 12),
+
             _previewDays.isEmpty
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(
+                    child: CircularProgressIndicator(color: Color(0xFF00E5FF)))
                 : ListView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
@@ -541,8 +628,8 @@ class _EmployeeAvailabilityScreenState
                       Color color = isScheduled
                           ? Colors.orange
                           : hasAvailability
-                              ? Colors.green
-                              : Colors.red;
+                              ? const Color(0xFF00E5FF)
+                              : Colors.redAccent;
 
                       IconData icon = isScheduled
                           ? Icons.event_busy
@@ -556,15 +643,29 @@ class _EmployeeAvailabilityScreenState
                               ? 'Available'
                               : 'No availability';
 
-                      return ListTile(
-                        onTap: () => _editDay(date),
-                        leading: Icon(icon, color: color),
-                        title: Text(_dateFormat.format(date)),
-                        subtitle: Text(subtitle),
-                        trailing: const Icon(Icons.edit, size: 20),
-                        tileColor: color.withOpacity(0.08),
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        color: Colors.grey[850],
                         shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8)),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: ListTile(
+                          onTap: () => _editDay(date),
+                          leading: Icon(icon, color: color),
+                          title: Text(
+                            _dateFormat.format(date),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          subtitle: Text(
+                            subtitle,
+                            style: TextStyle(color: Colors.white70),
+                          ),
+                          trailing: const Icon(Icons.edit,
+                              size: 20, color: Colors.white54),
+                        ),
                       );
                     },
                   ),

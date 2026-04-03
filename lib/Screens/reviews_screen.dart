@@ -1,6 +1,10 @@
-// lib/Screens/reviews_screen.dart
-// FULLY CLEANED FILE — Replace your entire reviews_screen.dart with this exact code
-// (Both lints fixed: removed unused isEmployee + _ReviewCard constructor updated)
+// lib/screens/reviews_screen.dart
+// FIXED: Removed 'const' from Scaffold + removed unused Key? parameter from _ReviewCard
+// FULL PREMIUM UPGRADE: Polar Glow dark theme + luxurious layout
+// - Icy cyan glow accents + elevated glowing cards
+// - Modern premium typography and generous spacing
+// - Beautiful empty state
+// - All original logic, role-based queries, delete functionality, and ReviewModel preserved 100%
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -18,6 +22,9 @@ class ReviewsScreen extends StatefulWidget {
 }
 
 class _ReviewsScreenState extends State<ReviewsScreen> {
+  // Polar Glow brand accent
+  Color get _accentColor => const Color(0xFF00E5FF);
+
   @override
   Widget build(BuildContext context) {
     final authProvider = context.watch<app_auth.AuthProvider>();
@@ -25,16 +32,31 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
     final appUser = authProvider.appUser;
 
     if (currentUser == null || appUser == null) {
-      return const Scaffold(
-        body: Center(child: Text('Please sign in to view reviews')),
+      return Scaffold(
+        // ← const removed to fix invalid constant error
+        backgroundColor: Colors.grey[900],
+        body: const Center(
+          child: Text(
+            'Please sign in to view reviews',
+            style: TextStyle(color: Colors.white70, fontSize: 18),
+          ),
+        ),
       );
     }
 
     final isAdmin = appUser.role == 'admin';
 
     return Scaffold(
+      backgroundColor: Colors.grey[900],
       appBar: AppBar(
-        title: Text(isAdmin ? 'All Reviews' : 'My Reviews'),
+        title: Text(
+          isAdmin ? 'All Reviews' : 'My Reviews',
+          style:
+              const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
+        ),
+        backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
+        elevation: 4,
         centerTitle: true,
       ),
       body: StreamBuilder<QuerySnapshot>(
@@ -53,24 +75,30 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
                 .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
+            return Center(
+              child: Text(
+                'Error: ${snapshot.error}',
+                style: const TextStyle(color: Colors.white70),
+              ),
+            );
           }
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+                child: CircularProgressIndicator(color: Color(0xFF00E5FF)));
           }
           if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
             return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(Icons.rate_review,
-                      size: 80, color: Colors.white54),
-                  const SizedBox(height: 16),
+                  Icon(Icons.rate_review,
+                      size: 90, color: _accentColor.withOpacity(0.3)),
+                  const SizedBox(height: 24),
                   Text(
                     isAdmin
                         ? 'No reviews yet'
                         : 'No reviews for your services yet',
-                    style: const TextStyle(fontSize: 20, color: Colors.white70),
+                    style: const TextStyle(fontSize: 22, color: Colors.white70),
                   ),
                   const SizedBox(height: 8),
                   const Text(
@@ -87,7 +115,7 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
               .toList();
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(24),
             itemCount: reviews.length,
             itemBuilder: (context, index) {
               final review = reviews[index];
@@ -100,16 +128,15 @@ class _ReviewsScreenState extends State<ReviewsScreen> {
   }
 }
 
-// Fixed constructor — explicit Key? + super(key: key) removes the lint
+// Premium Review Card (Key parameter removed to fix lint)
 class _ReviewCard extends StatelessWidget {
   final ReviewModel review;
   final bool isAdmin;
 
   const _ReviewCard({
-    Key? key,
     required this.review,
     required this.isAdmin,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -123,13 +150,19 @@ class _ReviewCard extends StatelessWidget {
         DateFormat('MMM d, yyyy • h:mm a').format(review.createdAt);
 
     return Card(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 20),
+      elevation: 12,
+      shadowColor: const Color(0xFF00E5FF).withOpacity(0.3),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(24),
+      ),
+      color: Colors.grey[850],
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Header row
             Row(
               children: [
                 Icon(
@@ -138,22 +171,24 @@ class _ReviewCard extends StatelessWidget {
                       : review.type == ReviewType.management
                           ? Icons.support_agent
                           : Icons.phone_android,
-                  color: Colors.amber,
+                  color: const Color(0xFF00E5FF),
+                  size: 28,
                 ),
-                const SizedBox(width: 8),
+                const SizedBox(width: 12),
                 Text(
                   typeLabel,
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                    fontSize: 17,
+                    color: Colors.white,
                   ),
                 ),
                 const Spacer(),
                 Text(
                   '${review.rating} ★',
                   style: const TextStyle(
-                    fontSize: 18,
-                    color: Colors.amber,
+                    fontSize: 22,
+                    color: Color(0xFFFFD700),
                     fontWeight: FontWeight.bold,
                   ),
                 ),
@@ -164,9 +199,9 @@ class _ReviewCard extends StatelessWidget {
             // Customer + date
             Text(
               'By ${review.customerName} • $dateFormatted',
-              style: TextStyle(
-                fontSize: 13,
-                color: Colors.white.withOpacity(0.7),
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.white54,
               ),
             ),
 
@@ -175,37 +210,46 @@ class _ReviewCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 'Booking #${review.bookingId!.substring(0, 8)}',
-                style: const TextStyle(fontSize: 13, color: Colors.cyan),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF00E5FF)),
               ),
             ],
 
-            const Divider(height: 24),
+            const Divider(height: 28, color: Colors.white24),
 
             // Comment
             Text(
               review.comment.isNotEmpty
                   ? review.comment
                   : 'No additional comment provided',
-              style: const TextStyle(fontSize: 15, height: 1.4),
+              style: const TextStyle(
+                  fontSize: 16, height: 1.5, color: Colors.white),
             ),
 
-            // Only admins see a small "Delete" action
+            // Admin-only delete button
             if (isAdmin)
               Align(
                 alignment: Alignment.centerRight,
                 child: TextButton.icon(
-                  icon: const Icon(Icons.delete_outline, size: 18),
-                  label: const Text('Delete'),
+                  icon: const Icon(Icons.delete_outline, size: 20),
+                  label: const Text('Delete Review'),
+                  style:
+                      TextButton.styleFrom(foregroundColor: Colors.redAccent),
                   onPressed: () async {
                     final confirm = await showDialog<bool>(
                       context: context,
                       builder: (ctx) => AlertDialog(
-                        title: const Text('Delete Review?'),
-                        content: const Text('This cannot be undone.'),
+                        backgroundColor: Colors.grey[900],
+                        title: const Text('Delete Review?',
+                            style: TextStyle(color: Colors.white)),
+                        content: const Text(
+                          'This action cannot be undone.',
+                          style: TextStyle(color: Colors.white70),
+                        ),
                         actions: [
                           TextButton(
-                              onPressed: () => Navigator.pop(ctx, false),
-                              child: const Text('Cancel')),
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancel'),
+                          ),
                           TextButton(
                             onPressed: () => Navigator.pop(ctx, true),
                             child: const Text('Delete',
