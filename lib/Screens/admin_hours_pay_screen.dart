@@ -1,3 +1,8 @@
+// lib/Screens/admin_hours_pay_screen.dart
+// UPGRADED: Premium dark theme with glowing cards + cyan accents
+// FIXED: Updated from old 'mileageClaims' → new 'reimbursements' collection
+// Fully consistent with EmployeeDashboard + all upgraded admin screens
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -18,12 +23,15 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
   double _hourlyRate = 20.0;
   double _totalPay = 0.0;
 
-  // Mileage claims
-  List<Map<String, dynamic>> _mileageClaims = [];
-  double _totalMileageReimbursement = 0.0;
+  // Reimbursements (formerly mileage)
+  List<Map<String, dynamic>> _reimbursements = [];
+  double _totalReimbursement = 0.0;
 
   bool _isLoading = true;
   String? _errorMessage;
+
+  // Polar Glow brand accent
+  Color get _accentColor => const Color(0xFF00E5FF);
 
   @override
   void initState() {
@@ -34,7 +42,7 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
   Future<void> _loadAllData() async {
     setState(() => _isLoading = true);
     try {
-      await Future.wait([_loadClockEvents(), _loadMileageClaims()]);
+      await Future.wait([_loadClockEvents(), _loadReimbursements()]);
       if (mounted) setState(() => _isLoading = false);
     } catch (e) {
       if (mounted) {
@@ -98,41 +106,42 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
     }
   }
 
-  Future<void> _loadMileageClaims() async {
+  Future<void> _loadReimbursements() async {
     final snapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(widget.employeeId)
-        .collection('mileageClaims')
-        .orderBy('date', descending: true)
+        .collection('reimbursements') // ← Updated to new collection
+        .orderBy('submittedAt', descending: true)
         .get();
 
     final claims = snapshot.docs.map((doc) {
       final data = doc.data();
       return {
         'id': doc.id,
-        'date': (data['date'] as Timestamp).toDate(),
-        'milesDriven': (data['milesDriven'] ?? 0.0).toDouble(),
-        'reimbursement': (data['reimbursement'] ?? 0.0).toDouble(),
-        'notes': data['notes'] ?? '',
-        'status': data['status'] ?? 'pending',
+        'date': (data['submittedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+        'amount': (data['amount'] ?? 0.0).toDouble(),
+        'title': data['title'] ?? 'Reimbursement',
+        'description': data['description'] ?? '',
+        'status': data['status'] ?? 'submitted',
+        'receiptUrl': data['receiptUrl'],
       };
     }).toList();
 
     final approvedTotal = claims
-        .where((c) => c['status'] == 'approved')
-        .fold<double>(0.0, (sum, c) => sum + c['reimbursement']);
+        .where((c) => c['status'] == 'paid' || c['status'] == 'accepted')
+        .fold<double>(0.0, (sum, c) => sum + c['amount']);
 
     if (mounted) {
       setState(() {
-        _mileageClaims = claims;
-        _totalMileageReimbursement = approvedTotal;
+        _reimbursements = claims;
+        _totalReimbursement = approvedTotal;
       });
     }
   }
 
-  // ── NEW: Mark Employee Paid ──
+  // ── Mark Employee Paid ──
   Future<void> _markEmployeePaid() async {
-    final grandTotal = _totalPay + _totalMileageReimbursement;
+    final grandTotal = _totalPay + _totalReimbursement;
     if (grandTotal <= 0) {
       ScaffoldMessenger.of(context)
           .showSnackBar(const SnackBar(content: Text('Nothing to pay yet')));
@@ -142,17 +151,20 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Mark Employee Paid?'),
+        backgroundColor: Colors.grey[850],
+        title: const Text('Mark Employee Paid?',
+            style: TextStyle(color: Colors.white)),
         content: Text(
             'Pay \$${grandTotal.toStringAsFixed(2)} to this employee?\n\n'
-            '(Hours: \$${_totalPay.toStringAsFixed(2)} + Mileage: \$${_totalMileageReimbursement.toStringAsFixed(2)})'),
+            '(Hours: \$${_totalPay.toStringAsFixed(2)} + Reimbursements: \$${_totalReimbursement.toStringAsFixed(2)})'),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
               child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Yes, Mark Paid'),
+            child: const Text('Yes, Mark Paid',
+                style: TextStyle(color: Color(0xFF00E5FF))),
           ),
         ],
       ),
@@ -169,8 +181,8 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
         'date': Timestamp.now(),
         'amount': grandTotal,
         'hoursPay': _totalPay,
-        'mileagePay': _totalMileageReimbursement,
-        'type': 'hours_and_mileage',
+        'reimbursementPay': _totalReimbursement, // ← updated field name
+        'type': 'hours_and_reimbursements',
         'status': 'paid',
         'notes': 'Full period payout (last 14 days)',
       });
@@ -249,18 +261,25 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
     final newRate = await showDialog<double>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Edit Hourly Rate'),
+        backgroundColor: Colors.grey[850],
+        title: const Text('Edit Hourly Rate',
+            style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: ctrl,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Hourly Rate (\$)'),
+          style: const TextStyle(color: Colors.white),
+          decoration: const InputDecoration(
+            labelText: 'Hourly Rate (\$)',
+            labelStyle: TextStyle(color: Colors.white70),
+          ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           TextButton(
             onPressed: () => Navigator.pop(ctx, double.tryParse(ctrl.text)),
-            child: const Text('Save'),
+            child:
+                const Text('Save', style: TextStyle(color: Color(0xFF00E5FF))),
           ),
         ],
       ),
@@ -294,75 +313,109 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenHeight < 700;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Hours & Pay'), centerTitle: true),
+      backgroundColor: Colors.grey[900],
+      appBar: AppBar(
+        title: const Text(
+          'Hours & Pay',
+          style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
+        ),
+        backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        centerTitle: true,
+      ),
       body: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (_isLoading)
-              const Center(child: CircularProgressIndicator())
+              const Expanded(child: Center(child: CircularProgressIndicator()))
             else if (_errorMessage != null)
-              Center(
-                  child: Text(_errorMessage!,
-                      style: const TextStyle(color: Colors.red)))
+              Expanded(
+                  child: Center(
+                      child: Text(_errorMessage!,
+                          style: const TextStyle(color: Colors.red))))
             else ...[
+              // Summary Card with glow
               Card(
+                elevation: 16,
+                shadowColor: _accentColor.withOpacity(0.4),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24)),
+                color: Colors.grey[850],
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(24),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('Total Hours: ${_formatDuration(_totalHours)}',
-                              style: const TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text(
+                            'Total Hours: ${_formatDuration(_totalHours)}',
+                            style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white),
+                          ),
                           TextButton.icon(
                             onPressed: _changeHourlyRate,
-                            icon: const Icon(Icons.edit, size: 18),
-                            label:
-                                Text('\$${_hourlyRate.toStringAsFixed(2)}/hr'),
+                            icon: const Icon(Icons.edit,
+                                size: 18, color: Color(0xFF00E5FF)),
+                            label: Text(
+                              '\$${_hourlyRate.toStringAsFixed(2)}/hr',
+                              style: const TextStyle(color: Color(0xFF00E5FF)),
+                            ),
                           ),
                         ],
                       ),
                       const SizedBox(height: 8),
                       Text(
-                          'Estimated Pay (hours): \$${_totalPay.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.w600)),
-                      const Divider(height: 24),
+                        'Estimated Pay (hours): \$${_totalPay.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.white),
+                      ),
+                      const Divider(height: 24, color: Colors.white24),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('Mileage Reimbursement (approved)'),
+                          const Text('Reimbursements (approved)',
+                              style: TextStyle(color: Colors.white70)),
                           Text(
-                              '\$${_totalMileageReimbursement.toStringAsFixed(2)}',
-                              style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.orange)),
+                            '\$${_totalReimbursement.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Text(
-                          'Grand Total: \$${(_totalPay + _totalMileageReimbursement).toStringAsFixed(2)}',
-                          style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.cyanAccent)),
-                      const SizedBox(height: 16),
+                        'Grand Total: \$${(_totalPay + _totalReimbursement).toStringAsFixed(2)}',
+                        style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF00E5FF)),
+                      ),
+                      const SizedBox(height: 20),
                       SizedBox(
                         width: double.infinity,
-                        child: ElevatedButton.icon(
+                        height: 56,
+                        child: FilledButton.icon(
                           onPressed: _markEmployeePaid,
                           icon: const Icon(Icons.payment),
                           label: const Text('Mark Employee Paid'),
-                          style: ElevatedButton.styleFrom(
+                          style: FilledButton.styleFrom(
                             backgroundColor: Colors.green,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            foregroundColor: Colors.white,
                           ),
                         ),
                       ),
@@ -370,13 +423,23 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
-              const Text('Clock Events (last 14 days)',
-                  style: TextStyle(fontWeight: FontWeight.w600)),
-              const SizedBox(height: 8),
+              const SizedBox(height: 32),
+
+              // Clock Events
+              Text(
+                'Clock Events (last 14 days)',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+              ),
+              const SizedBox(height: 12),
               Expanded(
+                flex: 2,
                 child: _payPeriodEvents.isEmpty
-                    ? const Center(child: Text('No clock events yet'))
+                    ? const Center(
+                        child: Text('No clock events yet',
+                            style: TextStyle(color: Colors.white70)))
                     : ListView.builder(
                         itemCount: _payPeriodEvents.length,
                         itemBuilder: (context, index) {
@@ -386,58 +449,72 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                               DateFormat('MMM d HH:mm').format(e['time']);
                           final barColor = isIn ? Colors.green : Colors.red;
 
-                          return IntrinsicHeight(
-                            child: Row(
-                              children: [
-                                Container(
-                                    width: 6,
-                                    color: barColor,
-                                    margin: const EdgeInsets.symmetric(
-                                        vertical: 4)),
-                                Expanded(
-                                  child: InkWell(
-                                    onTap: () => _editEventTime(
-                                        e['id'], e['type'], e['time']),
-                                    child: ListTile(
-                                      leading: Icon(
-                                          isIn ? Icons.login : Icons.logout,
-                                          color: barColor,
-                                          size: 28),
-                                      title: Text(
-                                          '${isIn ? "In" : "Out"} at $timeStr',
-                                          style: TextStyle(
-                                              color: isIn
-                                                  ? Colors.green[800]
-                                                  : Colors.red[800])),
-                                    ),
-                                  ),
+                          return Card(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            elevation: 12,
+                            shadowColor: barColor.withOpacity(0.3),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20)),
+                            color: Colors.grey[850],
+                            child: ListTile(
+                              leading: Container(
+                                width: 6,
+                                height: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: barColor,
+                                  borderRadius: BorderRadius.circular(12),
                                 ),
-                              ],
+                              ),
+                              title: Text(
+                                '${isIn ? "Clocked In" : "Clocked Out"} at $timeStr',
+                                style: TextStyle(
+                                    color: isIn ? Colors.green : Colors.red,
+                                    fontWeight: FontWeight.w600),
+                              ),
+                              onTap: () =>
+                                  _editEventTime(e['id'], e['type'], e['time']),
                             ),
                           );
                         },
                       ),
               ),
+
               const SizedBox(height: 24),
-              const Text('Mileage Claims',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 18)),
-              const SizedBox(height: 8),
-              _mileageClaims.isEmpty
-                  ? const Center(child: Text('No mileage claims yet'))
-                  : Expanded(
-                      child: ListView.builder(
-                        itemCount: _mileageClaims.length,
+
+              // Reimbursements
+              Text(
+                'Reimbursements',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              Expanded(
+                flex: 2,
+                child: _reimbursements.isEmpty
+                    ? const Center(
+                        child: Text('No reimbursements yet',
+                            style: TextStyle(color: Colors.white70)))
+                    : ListView.builder(
+                        itemCount: _reimbursements.length,
                         itemBuilder: (context, index) {
-                          final claim = _mileageClaims[index];
+                          final claim = _reimbursements[index];
                           final dateStr =
                               DateFormat('MMM d, yyyy').format(claim['date']);
-                          final isApproved = claim['status'] == 'approved';
-                          final isPending = claim['status'] == 'pending';
+                          final isApproved = claim['status'] == 'paid' ||
+                              claim['status'] == 'accepted';
+                          final isPending = claim['status'] == 'submitted';
 
                           return Card(
-                            margin: const EdgeInsets.only(bottom: 12),
+                            margin: const EdgeInsets.only(bottom: 16),
+                            elevation: 16,
+                            shadowColor: _accentColor.withOpacity(0.4),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(24)),
+                            color: Colors.grey[850],
                             child: Padding(
-                              padding: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.all(20),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -447,43 +524,46 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                                     children: [
                                       Text(dateStr,
                                           style: const TextStyle(
-                                              fontWeight: FontWeight.w600)),
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.white)),
                                       Text(
-                                          '\$${claim['reimbursement'].toStringAsFixed(2)}',
-                                          style: TextStyle(
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.bold,
-                                              color: isApproved
-                                                  ? Colors.green
-                                                  : Colors.orange)),
+                                        '\$${claim['amount'].toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.bold,
+                                            color: isApproved
+                                                ? Colors.green
+                                                : Colors.orange),
+                                      ),
                                     ],
                                   ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                      '${claim['milesDriven'].toStringAsFixed(1)} miles'),
-                                  if (claim['notes'].isNotEmpty)
-                                    Text('Note: ${claim['notes']}',
+                                  const SizedBox(height: 8),
+                                  Text(claim['title'],
+                                      style: const TextStyle(
+                                          color: Colors.white70)),
+                                  if (claim['description'].isNotEmpty)
+                                    Text('Note: ${claim['description']}',
                                         style: const TextStyle(
-                                            color: Colors.grey)),
-                                  const SizedBox(height: 12),
+                                            color: Colors.white54)),
+                                  const SizedBox(height: 16),
                                   if (isPending)
                                     Row(
                                       children: [
                                         Expanded(
-                                          child: ElevatedButton(
+                                          child: FilledButton(
                                             onPressed: () => _updateClaimStatus(
-                                                claim['id'], 'approved'),
-                                            style: ElevatedButton.styleFrom(
+                                                claim['id'], 'accepted'),
+                                            style: FilledButton.styleFrom(
                                                 backgroundColor: Colors.green),
                                             child: const Text('Approve'),
                                           ),
                                         ),
                                         const SizedBox(width: 12),
                                         Expanded(
-                                          child: ElevatedButton(
+                                          child: FilledButton(
                                             onPressed: () => _updateClaimStatus(
                                                 claim['id'], 'denied'),
-                                            style: ElevatedButton.styleFrom(
+                                            style: FilledButton.styleFrom(
                                                 backgroundColor: Colors.red),
                                             child: const Text('Deny'),
                                           ),
@@ -497,6 +577,10 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                                       backgroundColor: isApproved
                                           ? Colors.green.withOpacity(0.2)
                                           : Colors.red.withOpacity(0.2),
+                                      labelStyle: TextStyle(
+                                          color: isApproved
+                                              ? Colors.green
+                                              : Colors.red),
                                     ),
                                 ],
                               ),
@@ -504,7 +588,7 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                           );
                         },
                       ),
-                    ),
+              ),
             ],
           ],
         ),
@@ -517,14 +601,14 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.employeeId)
-          .collection('mileageClaims')
+          .collection('reimbursements')
           .doc(claimId)
           .update({'status': newStatus});
-      await _loadMileageClaims();
+      await _loadReimbursements();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(newStatus == 'approved'
+              content: Text(newStatus == 'accepted' || newStatus == 'paid'
                   ? '✅ Claim approved'
                   : '❌ Claim denied')),
         );

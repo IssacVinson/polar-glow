@@ -1,3 +1,8 @@
+// lib/Screens/admin_employee_details_screen.dart
+// UPGRADED: Premium dark theme with glowing cards, cyan accents, responsive layout
+// Fully consistent with EmployeeDashboard + all upgraded admin screens
+// No old mileage references found — nothing to update (new reimbursement screen is already being used elsewhere)
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -31,6 +36,9 @@ class _AdminEmployeeDetailsScreenState
   String _hoursThisMonth = '0 h 0 m';
   String _bookingsCompleted = '0';
   List<Map<String, dynamic>> _recentBookings = [];
+
+  // Polar Glow brand accent
+  Color get _accentColor => const Color(0xFF00E5FF);
 
   @override
   void initState() {
@@ -100,65 +108,105 @@ class _AdminEmployeeDetailsScreenState
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenHeight < 700;
+
     final joinDate = widget.createdAt != null
         ? DateFormat('MMM d, yyyy').format(widget.createdAt!.toDate())
         : 'Unknown join date';
 
     return Scaffold(
-      appBar:
-          AppBar(title: Text(widget.email.split('@').first), centerTitle: true),
+      backgroundColor: Colors.grey[900],
+      appBar: AppBar(
+        title: Text(
+          widget.email.split('@').first,
+          style:
+              const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
+        ),
+        backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        centerTitle: true,
+      ),
       body: DefaultTabController(
         length: 4,
         child: Column(
           children: [
+            // Premium glowing header
             Container(
-              padding: const EdgeInsets.all(24),
-              color: colorScheme.surfaceContainerHighest,
+              padding: EdgeInsets.all(isSmallScreen ? 20 : 24),
+              color: Colors.grey[850],
               child: Column(
                 children: [
                   CircleAvatar(
                     radius: 50,
-                    backgroundColor: colorScheme.primary,
-                    child: Text(widget.email[0].toUpperCase(),
-                        style:
-                            const TextStyle(fontSize: 40, color: Colors.white)),
+                    backgroundColor: _accentColor.withOpacity(0.2),
+                    child: Text(
+                      widget.email[0].toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 48,
+                        color: _accentColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 16),
-                  Text(widget.email,
-                      style: Theme.of(context).textTheme.titleLarge),
+                  Text(
+                    widget.email,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
                   const SizedBox(height: 8),
-                  Text('Role: ${widget.role} • Joined: $joinDate',
-                      style: Theme.of(context)
-                          .textTheme
-                          .bodyMedium
-                          ?.copyWith(color: colorScheme.onSurfaceVariant)),
+                  Text(
+                    'Role: ${widget.role.toUpperCase()} • Joined: $joinDate',
+                    style: Theme.of(context)
+                        .textTheme
+                        .bodyMedium
+                        ?.copyWith(color: Colors.white70),
+                  ),
                 ],
               ),
             ),
-            const TabBar(tabs: [
-              Tab(text: 'Summary'),
-              Tab(text: 'Hours & Pay'),
-              Tab(text: 'Schedule'),
-              Tab(text: 'Products')
-            ]),
+
+            // Premium dark TabBar
+            TabBar(
+              labelColor: _accentColor,
+              unselectedLabelColor: Colors.white70,
+              indicatorColor: _accentColor,
+              indicatorWeight: 3,
+              tabs: const [
+                Tab(text: 'Summary'),
+                Tab(text: 'Hours & Pay'),
+                Tab(text: 'Schedule'),
+                Tab(text: 'Products'),
+              ],
+            ),
+
+            // Tab content
             Expanded(
               child: TabBarView(
                 children: [
+                  // Summary Tab
                   Padding(
-                    padding: const EdgeInsets.all(16),
+                    padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
                     child: _isLoadingSummary
                         ? const Center(child: CircularProgressIndicator())
                         : _summaryError != null
                             ? Center(
                                 child: Card(
-                                  color: Colors.red.shade900,
-                                  child: const Padding(
-                                    padding: EdgeInsets.all(16),
+                                  elevation: 8,
+                                  shadowColor: Colors.red.withOpacity(0.4),
+                                  color: Colors.grey[850],
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(24),
                                     child: Text(
-                                        'Failed to load summary:\n\nTry creating the Firestore index or check permissions',
-                                        style: TextStyle(color: Colors.white),
-                                        textAlign: TextAlign.center),
+                                      'Failed to load summary:\n\nTry creating the Firestore index or check permissions',
+                                      style: TextStyle(
+                                          color: Colors.white70, fontSize: 15),
+                                      textAlign: TextAlign.center,
+                                    ),
                                   ),
                                 ),
                               )
@@ -166,33 +214,52 @@ class _AdminEmployeeDetailsScreenState
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    const Text('Quick Stats',
-                                        style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold)),
+                                    Text(
+                                      'Quick Stats',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                    ),
                                     const SizedBox(height: 16),
-                                    _buildStatCard('Total Hours This Month',
+                                    _buildGlowStatCard('Total Hours This Month',
                                         _hoursThisMonth),
-                                    _buildStatCard('Bookings Completed',
+                                    _buildGlowStatCard('Bookings Completed',
                                         _bookingsCompleted),
-                                    _buildStatCard('Average Rating', 'No data'),
-                                    const SizedBox(height: 24),
-                                    const Text('Recent Activity',
-                                        style: TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold)),
-                                    const SizedBox(height: 8),
+                                    _buildGlowStatCard(
+                                        'Average Rating', 'No data yet'),
+                                    const SizedBox(height: 32),
+                                    Text(
+                                      'Recent Activity',
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                    ),
+                                    const SizedBox(height: 12),
                                     _buildRecentActivity(),
                                   ],
                                 ),
                               ),
                   ),
+
+                  // Hours & Pay Tab
                   AdminHoursPayScreen(employeeId: widget.employeeId),
+
+                  // Schedule Tab
                   Padding(
                     padding: const EdgeInsets.all(8),
                     child: AdminScheduleCalendarScreen(
                         employeeId: widget.employeeId, showAppBar: false),
                   ),
+
+                  // Products Tab
                   _ProductsTab(employeeId: widget.employeeId),
                 ],
               ),
@@ -203,39 +270,82 @@ class _AdminEmployeeDetailsScreenState
     );
   }
 
-  Widget _buildStatCard(String label, String value) {
+  Widget _buildGlowStatCard(String label, String value) {
     return Card(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
+      elevation: 16,
+      shadowColor: _accentColor.withOpacity(0.4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      color: Colors.grey[850],
       child: ListTile(
-          title: Text(label),
-          trailing:
-              Text(value, style: const TextStyle(fontWeight: FontWeight.bold))),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+        title: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 15.5,
+            color: Colors.white70,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        trailing: Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: _accentColor,
+          ),
+        ),
+      ),
     );
   }
 
   Widget _buildRecentActivity() {
     if (_recentBookings.isEmpty) {
-      return const Card(
-          child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Text('No recent activity yet')));
+      return Card(
+        elevation: 12,
+        shadowColor: _accentColor.withOpacity(0.3),
+        color: Colors.grey[850],
+        child: const Padding(
+          padding: EdgeInsets.all(24),
+          child: Text(
+            'No recent activity yet',
+            style: TextStyle(color: Colors.white70),
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
     }
     return Column(
       children: _recentBookings.map((booking) {
         final date = (booking['date'] as Timestamp).toDate();
         final price = (booking['totalPrice'] as num? ?? 0).toDouble();
         return Card(
-          margin: const EdgeInsets.only(bottom: 8),
+          margin: const EdgeInsets.only(bottom: 12),
+          elevation: 16,
+          shadowColor: _accentColor.withOpacity(0.4),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          color: Colors.grey[850],
           child: ListTile(
-              title: Text('Booking on ${DateFormat('MMM d').format(date)}'),
-              subtitle: Text('Total: \$${price.toStringAsFixed(2)}')),
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            title: Text(
+              'Booking on ${DateFormat('MMM d').format(date)}',
+              style: const TextStyle(color: Colors.white),
+            ),
+            subtitle: Text(
+              'Total: \$${price.toStringAsFixed(2)}',
+              style: TextStyle(color: Colors.white70),
+            ),
+          ),
         );
       }).toList(),
     );
   }
 }
 
-// ==================== PRODUCTS TAB (FIXED - NO TYPE ERRORS) ====================
+// ==================== PRODUCTS TAB (Premium upgraded) ====================
 class _ProductsTab extends StatefulWidget {
   final String employeeId;
   const _ProductsTab({required this.employeeId});
@@ -271,18 +381,27 @@ class _ProductsTabState extends State<_ProductsTab> {
     final result = await showDialog<Map<String, dynamic>>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Assign New Product'),
+        backgroundColor: Colors.grey[850],
+        title: const Text('Assign New Product',
+            style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
                 controller: nameCtrl,
-                decoration: const InputDecoration(labelText: 'Product Name')),
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Product Name',
+                  labelStyle: TextStyle(color: Colors.white70),
+                )),
             TextField(
                 controller: costCtrl,
                 keyboardType: TextInputType.number,
-                decoration:
-                    const InputDecoration(labelText: 'Replacement Cost (\$)')),
+                style: const TextStyle(color: Colors.white),
+                decoration: const InputDecoration(
+                  labelText: 'Replacement Cost (\$)',
+                  labelStyle: TextStyle(color: Colors.white70),
+                )),
           ],
         ),
         actions: [
@@ -295,7 +414,8 @@ class _ProductsTabState extends State<_ProductsTab> {
               'usageCount': 0,
               'lastReplaced': Timestamp.now(),
             }),
-            child: const Text('Add'),
+            child:
+                const Text('Add', style: TextStyle(color: Color(0xFF00E5FF))),
           ),
         ],
       ),
@@ -347,8 +467,11 @@ class _ProductsTabState extends State<_ProductsTab> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Delete Product?'),
-        content: const Text('This cannot be undone.'),
+        backgroundColor: Colors.grey[850],
+        title: const Text('Delete Product?',
+            style: TextStyle(color: Colors.white)),
+        content: const Text('This cannot be undone.',
+            style: TextStyle(color: Colors.white70)),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(ctx, false),
@@ -373,23 +496,39 @@ class _ProductsTabState extends State<_ProductsTab> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenHeight < 700;
+
     return Padding(
-      padding: const EdgeInsets.all(16),
+      padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('Assigned Products',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-              IconButton(icon: const Icon(Icons.add), onPressed: _addProduct),
+              Text(
+                'Assigned Products',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+              ),
+              IconButton(
+                icon: Icon(Icons.add, color: const Color(0xFF00E5FF), size: 28),
+                onPressed: _addProduct,
+              ),
             ],
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
           Expanded(
             child: _products.isEmpty
-                ? const Center(child: Text('No products assigned yet'))
+                ? const Center(
+                    child: Text(
+                      'No products assigned yet',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                  )
                 : ListView.builder(
                     itemCount: _products.length,
                     itemBuilder: (context, i) {
@@ -402,19 +541,35 @@ class _ProductsTabState extends State<_ProductsTab> {
                           : '0.00';
 
                       return Card(
-                        margin: const EdgeInsets.only(bottom: 12),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        elevation: 16,
+                        shadowColor: const Color(0xFF00E5FF).withOpacity(0.4),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24)),
+                        color: Colors.grey[850],
                         child: ListTile(
-                          title: Text(p['name'] ?? 'Unnamed Product'),
+                          contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 16),
+                          title: Text(
+                            p['name'] ?? 'Unnamed Product',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w600),
+                          ),
                           subtitle: Text(
-                              'Used $usage times\nMonthly Avg: \$$monthlyAvg • YTD Total: \$${totalYTD.toStringAsFixed(2)}'),
+                            'Used $usage times\nMonthly Avg: \$$monthlyAvg • YTD Total: \$${totalYTD.toStringAsFixed(2)}',
+                            style: const TextStyle(color: Colors.white70),
+                          ),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline),
+                                  icon: const Icon(Icons.remove_circle_outline,
+                                      color: Colors.white70),
                                   onPressed: () => _decrementUsage(p['id'])),
                               IconButton(
-                                  icon: const Icon(Icons.add_circle),
+                                  icon: const Icon(Icons.add_circle,
+                                      color: Color(0xFF00E5FF)),
                                   onPressed: () => _incrementUsage(p['id'])),
                               IconButton(
                                   icon: const Icon(Icons.delete,

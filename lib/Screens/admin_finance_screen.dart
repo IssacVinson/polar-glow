@@ -1,3 +1,8 @@
+// lib/Screens/admin_finance_screen.dart
+// UPGRADED: Premium dark theme with glowing cards + cyan accents
+// FIXED: Updated from old 'mileageClaims' → new 'reimbursements' collection
+// Fully consistent with EmployeeDashboard + all upgraded admin screens
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -18,6 +23,9 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
 
   List<Map<String, dynamic>> _transactions = [];
   bool _isLoading = true;
+
+  // Polar Glow brand accent
+  Color get _accentColor => const Color(0xFF00E5FF);
 
   @override
   void initState() {
@@ -52,11 +60,11 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
           'amount': amount,
           'date': (data['date'] as Timestamp).toDate(),
           'isIn': true,
-          'data': data, // full booking data for modal
+          'data': data,
         });
       }
 
-      // Money Out: Approved mileage claims
+      // Money Out: Approved / Paid Reimbursements (NEW system)
       double outTotal = 0.0;
 
       final employeesSnap = await FirebaseFirestore.instance
@@ -66,24 +74,28 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
 
       for (var empDoc in employeesSnap.docs) {
         final claimsSnap = await empDoc.reference
-            .collection('mileageClaims')
-            .where('status', isEqualTo: 'approved')
+            .collection('reimbursements') // ← Updated to new collection
+            .where('status',
+                whereIn: ['paid', 'accepted']) // only real money out
             .get();
 
         for (var claimDoc in claimsSnap.docs) {
           final data = claimDoc.data();
-          final amount = (data['reimbursement'] ?? 0.0).toDouble();
+          final amount = (data['amount'] ?? 0.0).toDouble();
           outTotal += amount;
 
           trans.add({
-            'type': 'mileage',
-            'title': 'Mileage Reimbursement',
+            'type': 'reimbursement',
+            'title': data['title'] ?? 'Reimbursement',
             'subtitle':
-                '${data['milesDriven']?.toStringAsFixed(1) ?? 0} miles • ${empDoc['displayName'] ?? empDoc['email']}',
+                '${empDoc['displayName'] ?? empDoc['email'] ?? 'Employee'}',
             'amount': amount,
-            'date': (data['date'] as Timestamp).toDate(),
+            'date':
+                (data['submittedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
             'isIn': false,
-            'notes': data['notes'] ?? '',
+            'notes': data['description'] ?? '',
+            'status': data['status'],
+            'receiptUrl': data['receiptUrl'],
           });
         }
       }
@@ -109,7 +121,7 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
     }
   }
 
-  // Reused helper methods (same as Manage Bookings)
+  // Reused helper methods (same as before)
   Future<Map<String, String>> _getCustomerFullInfo(String? customerId) async {
     if (customerId == null || customerId.isEmpty)
       return {'name': 'Unknown', 'phone': 'N/A', 'email': 'N/A'};
@@ -151,7 +163,6 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
     return 'Unknown Employee';
   }
 
-  // Rich modal (identical to Manage Bookings)
   void _showBookingDetails(
       BuildContext context, Map<String, dynamic> data) async {
     final customerId = data['customerId'] ?? data['customerEmail'];
@@ -166,66 +177,91 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
       context: context,
       isScrollControlled: true,
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Booking Details',
-                style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            Text('Customer: ${customerInfo['name']}'),
-            Text('Email: ${customerInfo['email']}'),
-            Text('Phone: ${customerInfo['phone']}'),
-            if (data['address'] != null) Text('Address: ${data['address']}'),
-            Text('Date: ${DateFormat('MMM d, yyyy').format(alaskaDate)}'),
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    )),
+            const SizedBox(height: 20),
+            Text('Customer: ${customerInfo['name']}',
+                style: const TextStyle(color: Colors.white70)),
+            Text('Email: ${customerInfo['email']}',
+                style: const TextStyle(color: Colors.white70)),
+            Text('Phone: ${customerInfo['phone']}',
+                style: const TextStyle(color: Colors.white70)),
+            if (data['address'] != null)
+              Text('Address: ${data['address']}',
+                  style: const TextStyle(color: Colors.white70)),
+            Text('Date: ${DateFormat('MMM d, yyyy').format(alaskaDate)}',
+                style: const TextStyle(color: Colors.white70)),
             Text(
-                'Time: ${data['cars']?[0]?['time'] ?? data['timeSlot'] ?? 'N/A'}'),
-            Text('Assigned to: $employeeName'),
-            Text(
-                'Total: \$${data['totalPrice']?.toStringAsFixed(2) ?? '0.00'}'),
-            const SizedBox(height: 16),
+                'Time: ${data['cars']?[0]?['time'] ?? data['timeSlot'] ?? 'N/A'}',
+                style: const TextStyle(color: Colors.white70)),
+            Text('Assigned to: $employeeName',
+                style: const TextStyle(color: Colors.white70)),
+            Text('Total: \$${data['totalPrice']?.toStringAsFixed(2) ?? '0.00'}',
+                style: TextStyle(color: _accentColor, fontSize: 18)),
+            const SizedBox(height: 20),
             const Text('Services:',
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            ...((data['services'] as List?) ?? [])
-                .map((s) => Text('• ${s['name']} (\$${s['price']})')),
+                style: TextStyle(
+                    fontWeight: FontWeight.bold, color: Colors.white)),
+            ...((data['services'] as List?) ?? []).map((s) => Text(
+                '• ${s['name']} (\$${s['price']})',
+                style: const TextStyle(color: Colors.white70))),
             if (data['notes'] != null && data['notes'].toString().isNotEmpty)
-              Text('Notes: ${data['notes']}'),
+              Text('Notes: ${data['notes']}',
+                  style: const TextStyle(color: Colors.white70)),
             const SizedBox(height: 24),
             SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Close'))),
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+            ),
           ],
         ),
       ),
     );
   }
 
-  void _showMileageDetails(Map<String, dynamic> claim) {
+  void _showReimbursementDetails(Map<String, dynamic> claim) {
     showModalBottomSheet(
       context: context,
       builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text('Mileage Claim Details',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 16),
-            Text('Date: ${DateFormat('MMM d, yyyy').format(claim['date'])}'),
-            Text('Miles: ${claim['milesDriven']?.toStringAsFixed(1) ?? 0}'),
-            Text('Amount: \$${claim['amount']?.toStringAsFixed(2) ?? '0.00'}'),
-            if (claim['notes'] != null && claim['notes'].isNotEmpty)
-              Text('Note: ${claim['notes']}'),
+            Text('Reimbursement Details',
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    )),
             const SizedBox(height: 20),
+            Text('Title: ${claim['title']}',
+                style: const TextStyle(color: Colors.white70)),
+            Text('Amount: \$${claim['amount']?.toStringAsFixed(2) ?? '0.00'}',
+                style: TextStyle(color: _accentColor, fontSize: 18)),
+            Text('Date: ${DateFormat('MMM d, yyyy').format(claim['date'])}',
+                style: const TextStyle(color: Colors.white70)),
+            if (claim['notes'] != null && claim['notes'].isNotEmpty)
+              Text('Description: ${claim['notes']}',
+                  style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: 24),
             SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    child: const Text('Close'))),
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Close'),
+              ),
+            ),
           ],
         ),
       ),
@@ -234,50 +270,84 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final isSmallScreen = screenHeight < 700;
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Finance Overview'), centerTitle: true),
+      backgroundColor: Colors.grey[900],
+      appBar: AppBar(
+        title: const Text(
+          'Finance Overview',
+          style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
+        ),
+        backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
+        elevation: 4,
+        centerTitle: true,
+      ),
       body: RefreshIndicator(
         onRefresh: _loadFinanceData,
+        color: _accentColor,
         child: _isLoading
             ? const Center(child: CircularProgressIndicator())
             : SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Summary Cards with glow
                     Row(
                       children: [
                         Expanded(
-                            child: _SummaryCard(
-                                title: 'Money In',
-                                amount: _moneyIn,
-                                color: Colors.green,
-                                icon: Icons.arrow_downward)),
-                        const SizedBox(width: 12),
+                          child: _buildGlowSummaryCard(
+                            title: 'Money In',
+                            amount: _moneyIn,
+                            color: Colors.green,
+                            icon: Icons.arrow_downward_rounded,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
                         Expanded(
-                            child: _SummaryCard(
-                                title: 'Money Out',
-                                amount: _moneyOut,
-                                color: Colors.orange,
-                                icon: Icons.arrow_upward)),
+                          child: _buildGlowSummaryCard(
+                            title: 'Money Out',
+                            amount: _moneyOut,
+                            color: Colors.orange,
+                            icon: Icons.arrow_upward_rounded,
+                          ),
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    _SummaryCard(
-                        title: 'Net Profit',
-                        amount: _netProfit,
-                        color: _netProfit >= 0 ? Colors.cyan : Colors.red,
-                        icon: _netProfit >= 0
-                            ? Icons.trending_up
-                            : Icons.trending_down,
-                        isBig: true),
-                    const SizedBox(height: 32),
-                    const Text('Recent Transactions',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 16),
+                    _buildGlowSummaryCard(
+                      title: 'Net Profit',
+                      amount: _netProfit,
+                      color: _netProfit >= 0 ? Colors.cyan : Colors.red,
+                      icon: _netProfit >= 0
+                          ? Icons.trending_up_rounded
+                          : Icons.trending_down_rounded,
+                      isBig: true,
+                    ),
+                    const SizedBox(height: 40),
+
+                    Text(
+                      'Recent Transactions',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                    ),
+                    const SizedBox(height: 16),
+
                     _transactions.isEmpty
-                        ? const Center(child: Text('No transactions yet'))
+                        ? const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(40),
+                              child: Text(
+                                'No transactions yet',
+                                style: TextStyle(color: Colors.white70),
+                              ),
+                            ),
+                          )
                         : ListView.builder(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
@@ -285,40 +355,62 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
                             itemBuilder: (context, index) {
                               final t = _transactions[index];
                               final isIn = t['isIn'] as bool;
+
                               return Card(
-                                margin: const EdgeInsets.only(bottom: 10),
+                                margin: const EdgeInsets.only(bottom: 16),
+                                elevation: 16,
+                                shadowColor: _accentColor.withOpacity(0.4),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(24)),
+                                color: Colors.grey[850],
                                 child: ListTile(
+                                  contentPadding: const EdgeInsets.symmetric(
+                                      horizontal: 24, vertical: 12),
                                   leading: Icon(
-                                      isIn
-                                          ? Icons.arrow_downward
-                                          : Icons.arrow_upward,
-                                      color:
-                                          isIn ? Colors.green : Colors.orange),
-                                  title: Text(t['title']),
-                                  subtitle: Text(t['subtitle']),
+                                    isIn
+                                        ? Icons.arrow_downward_rounded
+                                        : Icons.arrow_upward_rounded,
+                                    color: isIn ? Colors.green : Colors.orange,
+                                    size: 28,
+                                  ),
+                                  title: Text(
+                                    t['title'],
+                                    style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                  subtitle: Text(
+                                    t['subtitle'],
+                                    style:
+                                        const TextStyle(color: Colors.white70),
+                                  ),
                                   trailing: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     crossAxisAlignment: CrossAxisAlignment.end,
                                     children: [
                                       Text(
-                                          '${isIn ? "+" : "-"}\$${t['amount'].toStringAsFixed(2)}',
-                                          style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              color: isIn
-                                                  ? Colors.green
-                                                  : Colors.orange)),
+                                        '${isIn ? "+" : "-"}\$${t['amount'].toStringAsFixed(2)}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          color: isIn
+                                              ? Colors.green
+                                              : Colors.orange,
+                                          fontSize: 16,
+                                        ),
+                                      ),
                                       Text(
-                                          DateFormat('MMM d').format(t['date']),
-                                          style: const TextStyle(
-                                              fontSize: 12,
-                                              color: Colors.grey)),
+                                        DateFormat('MMM d').format(t['date']),
+                                        style: const TextStyle(
+                                            fontSize: 12,
+                                            color: Colors.white54),
+                                      ),
                                     ],
                                   ),
                                   onTap: () {
                                     if (t['type'] == 'booking') {
                                       _showBookingDetails(context, t['data']);
                                     } else {
-                                      _showMileageDetails(t);
+                                      _showReimbursementDetails(t);
                                     }
                                   },
                                 ),
@@ -331,41 +423,47 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
       ),
     );
   }
-}
 
-class _SummaryCard extends StatelessWidget {
-  final String title;
-  final double amount;
-  final Color color;
-  final IconData icon;
-  final bool isBig;
-
-  const _SummaryCard(
-      {required this.title,
-      required this.amount,
-      required this.color,
-      required this.icon,
-      this.isBig = false});
-
-  @override
-  Widget build(BuildContext context) {
+  Widget _buildGlowSummaryCard({
+    required String title,
+    required double amount,
+    required Color color,
+    required IconData icon,
+    bool isBig = false,
+  }) {
     return Card(
-      elevation: 4,
+      elevation: 16,
+      shadowColor: color.withOpacity(0.5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      color: Colors.grey[850],
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              Icon(icon, color: color, size: isBig ? 28 : 20),
-              const SizedBox(width: 8),
-              Text(title, style: const TextStyle(fontWeight: FontWeight.w600))
-            ]),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(icon, color: color, size: isBig ? 32 : 24),
+                const SizedBox(width: 10),
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
-            Text('\$${amount.toStringAsFixed(2)}',
-                style: TextStyle(
-                    fontSize: isBig ? 32 : 24,
-                    fontWeight: FontWeight.bold,
-                    color: color)),
+            Text(
+              '\$${amount.toStringAsFixed(2)}',
+              style: TextStyle(
+                fontSize: isBig ? 36 : 26,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
           ],
         ),
       ),
