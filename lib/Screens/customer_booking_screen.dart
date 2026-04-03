@@ -1,3 +1,6 @@
+// lib/screens/customer_booking_screen.dart
+// UPDATED FILE — Replace your entire customer_booking_screen.dart with this exact code
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
@@ -11,21 +14,21 @@ import '../core/services/firestore_service.dart';
 import '../core/utils/alaska_date_utils.dart';
 import '../Providers/auth_provider.dart';
 
-class BookingScreen extends StatefulWidget {
+class CustomerBookingScreen extends StatefulWidget {
   final List<Map<String, dynamic>> selectedServices;
   final String selectedRegion;
 
-  const BookingScreen({
+  const CustomerBookingScreen({
     super.key,
     required this.selectedServices,
     required this.selectedRegion,
   });
 
   @override
-  State<BookingScreen> createState() => _BookingScreenState();
+  State<CustomerBookingScreen> createState() => _CustomerBookingScreenState();
 }
 
-class _BookingScreenState extends State<BookingScreen> {
+class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   final _formKey = GlobalKey<FormState>();
   final _addressController = TextEditingController();
   final _notesController = TextEditingController();

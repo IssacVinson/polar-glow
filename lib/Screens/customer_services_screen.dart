@@ -1,17 +1,20 @@
+// lib/screens/customer_services_screen.dart
+// UPDATED FILE — Replace your entire customer_services_screen.dart with this exact code
+
 import 'package:flutter/material.dart';
 
 import '../core/models/service_model.dart';
 import '../core/services/firestore_service.dart';
-import 'booking_screen.dart';
+import 'customer_booking_screen.dart';
 
-class ServicesScreen extends StatefulWidget {
-  const ServicesScreen({super.key});
+class CustomerServicesScreen extends StatefulWidget {
+  const CustomerServicesScreen({super.key});
 
   @override
-  State<ServicesScreen> createState() => _ServicesScreenState();
+  State<CustomerServicesScreen> createState() => _CustomerServicesScreenState();
 }
 
-class _ServicesScreenState extends State<ServicesScreen> {
+class _CustomerServicesScreenState extends State<CustomerServicesScreen> {
   final FirestoreService _firestore = FirestoreService();
   List<ServiceModel> _services = [];
   String? _errorMessage;
@@ -213,7 +216,8 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                         Navigator.push(
                                           context,
                                           MaterialPageRoute(
-                                            builder: (_) => BookingScreen(
+                                            builder: (_) =>
+                                                CustomerBookingScreen(
                                               selectedServices: selectedMaps,
                                               selectedRegion: _selectedRegion!,
                                             ),

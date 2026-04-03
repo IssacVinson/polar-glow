@@ -10,19 +10,19 @@ import 'package:provider/provider.dart';
 import '../Providers/auth_provider.dart' as app_auth;
 import '../core/models/review_model.dart';
 
-class FeedbackScreen extends StatefulWidget {
+class CustomerFeedbackScreen extends StatefulWidget {
   final String? preselectedBookingId;
 
-  const FeedbackScreen({
+  const CustomerFeedbackScreen({
     super.key,
     this.preselectedBookingId,
   });
 
   @override
-  State<FeedbackScreen> createState() => _FeedbackScreenState();
+  State<CustomerFeedbackScreen> createState() => _FeedbackScreenState();
 }
 
-class _FeedbackScreenState extends State<FeedbackScreen> {
+class _FeedbackScreenState extends State<CustomerFeedbackScreen> {
   late ReviewType _selectedType;
   String? _selectedBookingId;
   String? _selectedDetailerId;

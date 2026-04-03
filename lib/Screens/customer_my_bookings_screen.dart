@@ -1,4 +1,4 @@
-// lib/Screens/customer_my_bookings_screen.dart
+// lib/screens/customer_my_bookings_screen.dart
 // UPDATED FILE — Replace your entire customer_my_bookings_screen.dart with this exact code
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../core/utils/alaska_date_utils.dart';
-import 'feedback_screen.dart'; // ← NEW: hybrid feedback screen
+import 'customer_feedback_screen.dart'; // ← NEW: hybrid feedback screen
 
 class CustomerMyBookingsScreen extends StatefulWidget {
   const CustomerMyBookingsScreen({super.key});
@@ -230,7 +230,7 @@ class _CustomerMyBookingsScreenState extends State<CustomerMyBookingsScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => FeedbackScreen(
+                        builder: (_) => CustomerFeedbackScreen(
                           preselectedBookingId: bookingId, // ← hybrid magic
                         ),
                       ),
@@ -267,7 +267,4 @@ class _CustomerMyBookingsScreenState extends State<CustomerMyBookingsScreen> {
     } catch (_) {}
     return {'name': 'Unknown', 'phone': 'N/A', 'email': 'N/A'};
   }
-
-  // OLD review dialog and _StarRating have been removed
-  // (everything now lives cleanly in the new FeedbackScreen)
 }

@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 
 import 'Providers/auth_provider.dart';
 import 'screens/login_screen.dart';
-import 'screens/home_screen.dart';
+import 'screens/customer_dashboard.dart';
 import 'screens/admin_dashboard.dart';
 import 'screens/employee_dashboard.dart';
 
@@ -33,7 +33,7 @@ class AuthWrapper extends StatelessWidget {
             return const EmployeeDashboard();
           case 'customer':
           default:
-            return const HomeScreen();
+            return const CustomerDashboard();
         }
       },
     );

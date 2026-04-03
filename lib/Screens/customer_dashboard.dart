@@ -1,16 +1,13 @@
-// lib/Screens/home_screen.dart
-// UPDATED FILE — Replace your entire home_screen.dart with this exact code
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 
-import 'services_screen.dart';
-import 'customer_my_bookings_screen.dart'; // ← NEW
-import 'feedback_screen.dart'; // ← NEW (added for the hybrid feedback flow)
+import 'customer_services_screen.dart';
+import 'customer_my_bookings_screen.dart';
+import 'customer_feedback_screen.dart';
 
-class HomeScreen extends StatelessWidget {
-  const HomeScreen({super.key});
+class CustomerDashboard extends StatelessWidget {
+  const CustomerDashboard({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -104,7 +101,8 @@ class HomeScreen extends StatelessWidget {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (_) => const ServicesScreen()),
+                      MaterialPageRoute(
+                          builder: (_) => const CustomerServicesScreen()),
                     );
                   },
                 ),
@@ -160,7 +158,7 @@ class HomeScreen extends StatelessWidget {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const FeedbackScreen(),
+                        builder: (_) => const CustomerFeedbackScreen(),
                       ),
                     );
                   },
