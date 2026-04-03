@@ -33,8 +33,11 @@ dependencies:
   flutter_stripe: ^12.4.0
   http: ^1.2.2
 
-  # Address autocomplete (updated to latest version)
+  # Address autocomplete
   google_places_flutter: ^2.1.1
+
+  # NEW: Premium fonts for a high-quality, professional look (Inter font)
+  google_fonts: ^8.0.2
 
 dev_dependencies:
   flutter_test:

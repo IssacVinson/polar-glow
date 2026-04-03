@@ -3,7 +3,7 @@ const logger = require("firebase-functions/logger");
 const Stripe = require("stripe");
 
 // === PASTE YOUR FULL SECRET KEY HERE (replace the line below) ===
-const stripe = new Stripe("sk_test_51TEEFFAmlYRxjwqhy3hKwLwS3whXIgOistkbGNjZs8GH8zpukHMvMMap2acO1ZZnEL7hwd1SgaAYrjTe8kj235bl00G1fSxUqq");
+const stripe = new Stripe("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");
 
 exports.createPaymentIntent = onCall({ cors: true }, async (request) => {
   try {

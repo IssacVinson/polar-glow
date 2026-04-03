@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import 'firebase_options.dart';
@@ -14,7 +15,7 @@ void main() async {
 
   // === PASTE YOUR FULL PUBLISHABLE KEY HERE === Paste the SK in functions/index.js
   Stripe.publishableKey =
-      'pk_test_51TEEFFAmlYRxjwqhtzdq6OIIFgO1Bed6I8FN0GjqJhAiigLemWKPJcLhxwrnYt25al8ipCx65ANYdyYTPdNJGoNX00MgYDZmFQ';
+      'pk_live_51TEEF1AnOPvIVmjpsrLDtyNdf0Y4QnhxiZOqqFlOC0rKdjvdVbFW8LppCZi7TswyV2gX11y335KN2e5VXb9WvwKd00g6CfPKY6';
   await Stripe.instance.applySettings();
 
   runApp(
@@ -35,18 +36,32 @@ class PolarGlowApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        primarySwatch: Colors.blueGrey,
-        scaffoldBackgroundColor: Colors.grey[900],
-        colorScheme: ColorScheme.fromSwatch(
-          primarySwatch: Colors.blueGrey,
+        fontFamily: GoogleFonts.inter().fontFamily,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blueGrey,
           brightness: Brightness.dark,
-        ).copyWith(primary: Colors.blueGrey[700], secondary: Colors.cyan[400]),
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: Colors.white),
-          bodyMedium: TextStyle(color: Colors.white70),
-          titleLarge: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
+          primary: Colors.blueGrey[700]!,
+          secondary: Colors.cyan[400]!,
+          surface: Colors.grey[900]!,
+          background: Colors.grey[900]!,
+        ),
+        scaffoldBackgroundColor: Colors.grey[900],
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF263238),
+          elevation: 0,
+          centerTitle: true,
+          titleTextStyle: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w700,
+            letterSpacing: -0.5,
+          ),
+        ),
+        // FIXED: Use CardThemeData (new API)
+        cardTheme: CardThemeData(
+          color: Colors.blueGrey[800],
+          elevation: 6,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
@@ -55,19 +70,44 @@ class PolarGlowApp extends StatelessWidget {
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
             ),
-            elevation: 6,
-            shadowColor: Colors.cyan.withOpacity(0.4),
+            elevation: 8,
+            shadowColor: Colors.cyan.withOpacity(0.3),
+            textStyle: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 16,
+            ),
           ),
         ),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF37474F),
-          elevation: 0,
-          titleTextStyle: TextStyle(
+        textTheme: GoogleFonts.interTextTheme(
+          Theme.of(context).textTheme,
+        ).copyWith(
+          bodyLarge: const TextStyle(color: Colors.white, fontSize: 16),
+          bodyMedium: const TextStyle(color: Colors.white70, fontSize: 14),
+          titleLarge: const TextStyle(
             color: Colors.white,
+            fontWeight: FontWeight.w700,
             fontSize: 20,
-            fontWeight: FontWeight.bold,
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.blueGrey[800],
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide.none,
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.cyan[400]!, width: 2),
+          ),
+        ),
+        // FIXED: Use DialogThemeData (new API)
+        dialogTheme: DialogThemeData(
+          backgroundColor: Colors.blueGrey[850],
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
           ),
         ),
       ),

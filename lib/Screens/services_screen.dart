@@ -63,9 +63,17 @@ class _ServicesScreenState extends State<ServicesScreen> {
     return _services.where((s) => _selectedServices[s.id] == true).toList();
   }
 
+  List<ServiceModel> get _baseServices =>
+      _services.where((s) => s.category != 'add_on').toList();
+
+  List<ServiceModel> get _addOnServices =>
+      _services.where((s) => s.category == 'add_on').toList();
+
+  bool get _hasBaseService => _selected.any((s) => s.category != 'add_on');
+
   final Map<String, bool> _selectedServices = {};
 
-  bool get _canContinue => _selected.isNotEmpty && _selectedRegion != null;
+  bool get _canContinue => _hasBaseService && _selectedRegion != null;
 
   @override
   Widget build(BuildContext context) {
@@ -105,62 +113,23 @@ class _ServicesScreenState extends State<ServicesScreen> {
                       child: _services.isEmpty
                           ? const Center(
                               child: Text('No services available yet'))
-                          : ListView.builder(
+                          : ListView(
                               padding: const EdgeInsets.all(16),
-                              itemCount: _services.length,
-                              itemBuilder: (context, index) {
-                                final service = _services[index];
-                                final isSelected =
-                                    _selectedServices[service.id] ?? false;
+                              children: [
+                                // Base Services Banner
+                                _buildSectionHeader('Base Services'),
+                                const SizedBox(height: 8),
+                                ..._baseServices.map(
+                                    (service) => _buildServiceCard(service)),
 
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  color: service.category == 'add_on'
-                                      ? Colors.blueGrey[800]
-                                      : Colors.blueGrey[700],
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  child: CheckboxListTile(
-                                    value: isSelected,
-                                    onChanged: (bool? value) {
-                                      setState(() {
-                                        _selectedServices[service.id] =
-                                            value ?? false;
-                                      });
-                                    },
-                                    title: Text(service.name,
-                                        style: const TextStyle(
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white)),
-                                    subtitle: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                            '\$${service.price.toStringAsFixed(2)}',
-                                            style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.bold,
-                                                color:
-                                                    service.category == 'add_on'
-                                                        ? Colors.cyan[300]
-                                                        : Colors.white)),
-                                        const SizedBox(height: 4),
-                                        Text(service.description,
-                                            style: const TextStyle(
-                                                color: Colors.white70)),
-                                      ],
-                                    ),
-                                    controlAffinity:
-                                        ListTileControlAffinity.leading,
-                                    activeColor: Colors.cyan[400],
-                                    checkColor: Colors.black,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
-                                  ),
-                                );
-                              },
+                                const SizedBox(height: 32),
+
+                                // Add Ons Banner
+                                _buildSectionHeader('Add Ons'),
+                                const SizedBox(height: 8),
+                                ..._addOnServices.map(
+                                    (service) => _buildServiceCard(service)),
+                              ],
                             ),
                     ),
 
@@ -194,7 +163,20 @@ class _ServicesScreenState extends State<ServicesScreen> {
                               setState(() => _selectedRegion = value);
                             },
                           ),
-                          const SizedBox(height: 16),
+                          const SizedBox(height: 12),
+
+                          // Warning when only add-ons are selected
+                          if (_selected.isNotEmpty && !_hasBaseService)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 12),
+                              child: Text(
+                                'You must select at least one Base Service',
+                                style: TextStyle(
+                                  color: Colors.orange[300],
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
 
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -233,8 +215,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                           MaterialPageRoute(
                                             builder: (_) => BookingScreen(
                                               selectedServices: selectedMaps,
-                                              selectedRegion:
-                                                  _selectedRegion!, // now required
+                                              selectedRegion: _selectedRegion!,
                                             ),
                                           ),
                                         );
@@ -262,6 +243,71 @@ class _ServicesScreenState extends State<ServicesScreen> {
                     ),
                   ],
                 ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+      decoration: BoxDecoration(
+        color: title == 'Base Services'
+            ? Colors.blueGrey[700]
+            : Colors.blueGrey[800],
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        title,
+        style: const TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.bold,
+          color: Colors.white,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildServiceCard(ServiceModel service) {
+    final isSelected = _selectedServices[service.id] ?? false;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 16),
+      color: service.category == 'add_on'
+          ? Colors.blueGrey[800]
+          : Colors.blueGrey[700],
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: CheckboxListTile(
+        value: isSelected,
+        onChanged: (bool? value) {
+          setState(() {
+            _selectedServices[service.id] = value ?? false;
+          });
+        },
+        title: Text(service.name,
+            style: const TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Colors.white)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('\$${service.price.toStringAsFixed(2)}',
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: service.category == 'add_on'
+                        ? Colors.cyan[300]
+                        : Colors.white)),
+            const SizedBox(height: 4),
+            Text(service.description,
+                style: const TextStyle(color: Colors.white70)),
+          ],
+        ),
+        controlAffinity: ListTileControlAffinity.leading,
+        activeColor: Colors.cyan[400],
+        checkColor: Colors.black,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      ),
     );
   }
 }

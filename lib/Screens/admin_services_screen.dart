@@ -40,7 +40,9 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
     final nameCtrl = TextEditingController(text: service?.name);
     final priceCtrl = TextEditingController(text: service?.price.toString());
     final descCtrl = TextEditingController(text: service?.description);
-    final categoryCtrl = TextEditingController(text: service?.category);
+
+    // No default selection when adding a new service
+    String selectedCategory = service?.category ?? '';
 
     bool isSaving = false;
 
@@ -51,26 +53,75 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             return AlertDialog(
-              title: Text(service == null ? 'Add Service' : 'Edit Service'),
-              content: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
+              // FIXED: Much brighter, larger, bold white title so it's easy to read
+              title: Text(
+                service == null ? 'Add Service' : 'Edit Service',
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextField(
                       controller: nameCtrl,
-                      decoration: const InputDecoration(labelText: 'Name')),
-                  TextField(
+                      decoration: const InputDecoration(labelText: 'Name'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
                       controller: priceCtrl,
                       decoration: const InputDecoration(labelText: 'Price'),
-                      keyboardType: TextInputType.number),
-                  TextField(
+                      keyboardType:
+                          TextInputType.numberWithOptions(decimal: true),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
                       controller: descCtrl,
                       decoration:
-                          const InputDecoration(labelText: 'Description')),
-                  TextField(
-                      controller: categoryCtrl,
-                      decoration: const InputDecoration(
-                          labelText: 'Category (base/add_on/interior)')),
-                ],
+                          const InputDecoration(labelText: 'Description'),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Clean modern segmented button
+                    const Text(
+                      'Service Type',
+                      style:
+                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    const SizedBox(height: 8),
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(
+                          value: 'base',
+                          label: Text('Base Service'),
+                        ),
+                        ButtonSegment(
+                          value: 'add_on',
+                          label: Text('Add On'),
+                        ),
+                      ],
+                      selected:
+                          selectedCategory.isEmpty ? {} : {selectedCategory},
+                      onSelectionChanged: (Set<String> newSelection) {
+                        setDialogState(() {
+                          selectedCategory = newSelection.first;
+                        });
+                      },
+                      style: SegmentedButton.styleFrom(
+                        backgroundColor: Colors.blueGrey[400], // unselected
+                        foregroundColor: Colors.black87, // unselected
+                        selectedBackgroundColor: Colors.cyan[700],
+                        selectedForegroundColor: Colors.white,
+                      ),
+                      emptySelectionAllowed: true,
+                    ),
+                  ],
+                ),
               ),
               actions: [
                 TextButton(
@@ -78,7 +129,8 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
                   child: const Text('Cancel'),
                 ),
                 TextButton(
-                  onPressed: isSaving
+                  onPressed: isSaving ||
+                          (service == null && selectedCategory.isEmpty)
                       ? null
                       : () async {
                           setDialogState(() => isSaving = true);
@@ -87,7 +139,7 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
                             id: service?.id ?? '',
                             name: nameCtrl.text.trim(),
                             price: double.tryParse(priceCtrl.text) ?? 0,
-                            category: categoryCtrl.text.trim().toLowerCase(),
+                            category: selectedCategory,
                             description: descCtrl.text.trim(),
                           );
 
@@ -143,6 +195,7 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: AppBar(
         title: const Text('Manage Services'),
         actions: [
@@ -184,9 +237,10 @@ class _AdminServicesScreenState extends State<AdminServicesScreen> {
                                       onPressed: () => Navigator.pop(c, false),
                                       child: const Text('Cancel')),
                                   TextButton(
-                                      onPressed: () => Navigator.pop(c, true),
-                                      child: const Text('Delete',
-                                          style: TextStyle(color: Colors.red))),
+                                    onPressed: () => Navigator.pop(c, true),
+                                    child: const Text('Delete',
+                                        style: TextStyle(color: Colors.red)),
+                                  ),
                                 ],
                               ),
                             );
