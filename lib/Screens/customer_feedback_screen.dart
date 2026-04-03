@@ -1,5 +1,9 @@
-// lib/Screens/feedback_screen.dart
-// UPDATED: Scroll box for completed bookings is now smaller (height reduced from 260 → 200)
+// lib/screens/customer/customer_feedback_screen.dart
+// FIXED & PREMIUM REMAKE: Fully dynamic + responsive layout for all phone sizes
+// - Rating stars now responsive (no overflow on any device)
+// - Booking picker is completely dynamic (shrinks to content, no empty space)
+// - Perfect feng shui with generous breathing room, centered elements, and premium flow
+// - All original logic, features, and functionality preserved 100%
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -29,6 +33,10 @@ class _FeedbackScreenState extends State<CustomerFeedbackScreen> {
   String? _selectedDetailerName;
   int _rating = 5;
   final _commentController = TextEditingController();
+
+  // Polar Glow brand colors
+  Color get _accentColor => const Color(0xFF00E5FF); // icy cyan
+  Color get _goldColor => const Color(0xFFFFD700); // gold
 
   @override
   void initState() {
@@ -108,72 +116,153 @@ class _FeedbackScreenState extends State<CustomerFeedbackScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+
     return Scaffold(
+      backgroundColor: Colors.grey[900],
       appBar: AppBar(
-        title: const Text('Give Feedback'),
+        title: const Text(
+          'Give Feedback',
+          style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
+        ),
+        backgroundColor: Colors.black87,
+        foregroundColor: Colors.white,
+        elevation: 4,
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 32),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            // Elegant centered header
+            Center(
+              child: Column(
+                children: [
+                  Icon(Icons.favorite_rounded, size: 64, color: _accentColor),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Your opinion matters',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                          letterSpacing: 0.3,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Help us make Polar Glow even better',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          color: Colors.white70,
+                        ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 40),
+
+            // Type selector
+            Text(
               'What would you like to review?',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
             ),
             const SizedBox(height: 16),
             _buildTypeSelector(),
-            const SizedBox(height: 32),
+
+            const SizedBox(height: 40),
+
+            // Conditional booking picker (now fully dynamic)
             if (_selectedType == ReviewType.service) ...[
-              const Text(
+              Text(
                 'Which service would you like to review?',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               _buildCompletedBookingsPicker(),
-              const SizedBox(height: 32),
+              const SizedBox(height: 40),
             ],
-            const Text(
+
+            // Star rating - responsive size
+            Text(
               'Overall rating',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 16),
             Center(
               child: _StarRating(
                 value: _rating,
                 onChanged: (val) => setState(() => _rating = val),
+                screenWidth: screenWidth, // pass for responsive sizing
               ),
             ),
-            const SizedBox(height: 32),
+
+            const SizedBox(height: 40),
+
+            // Comment field
+            Text(
+              'Tell us more (optional but super helpful)',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                  ),
+            ),
+            const SizedBox(height: 12),
             TextField(
               controller: _commentController,
-              maxLines: 6,
-              decoration: const InputDecoration(
-                labelText: 'Tell us more (optional but super helpful)',
-                border: OutlineInputBorder(),
+              maxLines: 7,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              decoration: InputDecoration(
                 hintText: 'What did you love? What could be better?',
+                hintStyle: const TextStyle(color: Colors.white38),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  borderSide: const BorderSide(color: Colors.white24),
+                ),
+                filled: true,
+                fillColor: Colors.black12,
+                contentPadding: const EdgeInsets.all(20),
               ),
             ),
-            const SizedBox(height: 40),
+
+            const SizedBox(height: 48),
+
+            // Submit button
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton.icon(
-                icon: const Icon(Icons.send_rounded),
+              child: FilledButton.icon(
+                icon: const Icon(Icons.send_rounded, size: 28),
                 label: const Text(
                   'Submit Review',
-                  style: TextStyle(fontSize: 18),
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                 ),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 18),
-                  backgroundColor: Colors.amber[700],
+                style: FilledButton.styleFrom(
+                  backgroundColor: _goldColor,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 24),
+                  elevation: 16,
+                  shadowColor: _goldColor.withOpacity(0.7),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(24),
                   ),
                 ),
                 onPressed: _submitReview,
               ),
             ),
+
+            const SizedBox(height: 32),
           ],
         ),
       ),
@@ -196,29 +285,37 @@ class _FeedbackScreenState extends State<CustomerFeedbackScreen> {
 
   Widget _buildTypeCard(ReviewType type, String label, IconData icon) {
     final isSelected = _selectedType == type;
+
     return Expanded(
       child: InkWell(
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(24),
         onTap: () => setState(() => _selectedType = type),
         child: Card(
-          elevation: isSelected ? 6 : 2,
-          color: isSelected ? Colors.cyan.withOpacity(0.15) : null,
+          elevation: isSelected ? 16 : 6,
+          shadowColor: isSelected
+              ? _accentColor.withOpacity(0.6)
+              : Colors.black.withOpacity(0.4),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          color: Colors.grey[850],
           child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
+            padding: const EdgeInsets.symmetric(vertical: 28),
             child: Column(
               children: [
                 Icon(
                   icon,
-                  size: 36,
-                  color: isSelected ? Colors.cyan : Colors.white70,
+                  size: 48,
+                  color: isSelected ? _accentColor : Colors.white70,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 14),
                 Text(
                   label,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                    fontSize: 15,
+                    fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                    fontSize: 15.5,
+                    color: isSelected ? Colors.white : Colors.white70,
                   ),
                 ),
               ],
@@ -231,7 +328,10 @@ class _FeedbackScreenState extends State<CustomerFeedbackScreen> {
 
   Widget _buildCompletedBookingsPicker() {
     final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return const Text('Please sign in');
+    if (currentUser == null) {
+      return const Text('Please sign in',
+          style: TextStyle(color: Colors.white70));
+    }
 
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
@@ -246,7 +346,10 @@ class _FeedbackScreenState extends State<CustomerFeedbackScreen> {
           final error = snapshot.error.toString();
           if (error.contains('requires an index')) {
             return Card(
-              color: Colors.amber[100],
+              color: Colors.amber[900]!.withOpacity(0.2),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(24),
+              ),
               child: const Padding(
                 padding: EdgeInsets.all(24),
                 child: Column(
@@ -256,8 +359,11 @@ class _FeedbackScreenState extends State<CustomerFeedbackScreen> {
                     SizedBox(height: 12),
                     Text(
                       'One-time setup needed',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
                     ),
                     SizedBox(height: 8),
                     Text(
@@ -265,108 +371,142 @@ class _FeedbackScreenState extends State<CustomerFeedbackScreen> {
                       'Click the link in the terminal (or search "Firestore indexes" in console) and create it.\n'
                       'It usually takes under 60 seconds.',
                       textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white70),
                     ),
                   ],
                 ),
               ),
             );
           }
-          return Center(child: Text('Error: $error'));
+          return Center(
+              child: Text('Error: $error',
+                  style: const TextStyle(color: Colors.white70)));
         }
 
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(
+              child: CircularProgressIndicator(color: Color(0xFF00E5FF)));
         }
 
         final docs = snapshot.data?.docs ?? [];
 
         if (docs.isEmpty) {
-          return const Card(
-            child: Padding(
-              padding: EdgeInsets.all(24),
+          return Card(
+            color: Colors.grey[850],
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: const Padding(
+              padding: EdgeInsets.all(40),
               child: Center(
                 child: Text(
                   'No completed bookings yet.\nBook a service and come back!',
                   textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.white70, fontSize: 16),
                 ),
               ),
             ),
           );
         }
 
-        return SizedBox(
-          height: 200, // ← REDUCED from 260 → 200 (much shorter scroll box)
-          child: ListView.builder(
-            itemCount: docs.length,
-            itemBuilder: (context, index) {
-              final doc = docs[index];
-              final data = doc.data() as Map<String, dynamic>;
-              final bookingId = doc.id;
-              final date = (data['date'] as Timestamp).toDate();
-              final timeSlot =
-                  data['cars']?[0]?['time'] ?? data['timeSlot'] ?? '';
-              final detailerName = data['assignedDetailerName'] ??
-                  data['assignedEmployeeName'] ??
-                  'Detailer';
+        // DYNAMIC: No fixed height + shrinkWrap so it only takes the space it needs
+        return ListView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: docs.length,
+          itemBuilder: (context, index) {
+            final doc = docs[index];
+            final data = doc.data() as Map<String, dynamic>;
+            final bookingId = doc.id;
+            final date = (data['date'] as Timestamp).toDate();
+            final timeSlot =
+                data['cars']?[0]?['time'] ?? data['timeSlot'] ?? '';
+            final detailerName = data['assignedDetailerName'] ??
+                data['assignedEmployeeName'] ??
+                'Detailer';
 
-              final isSelected = _selectedBookingId == bookingId;
+            final isSelected = _selectedBookingId == bookingId;
 
-              return Card(
-                margin: const EdgeInsets.only(bottom: 10),
-                color: isSelected ? Colors.cyan.withOpacity(0.2) : null,
-                child: ListTile(
-                  leading: const Icon(Icons.check_circle, color: Colors.green),
-                  title: Text(
-                    DateFormat('EEEE, MMM d').format(date),
-                    style: const TextStyle(fontWeight: FontWeight.w600),
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              elevation: isSelected ? 12 : 4,
+              shadowColor: isSelected
+                  ? _accentColor.withOpacity(0.5)
+                  : Colors.black.withOpacity(0.3),
+              color: isSelected ? Colors.grey[800] : Colors.grey[850],
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: ListTile(
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                leading: const Icon(Icons.check_circle, color: Colors.green),
+                title: Text(
+                  DateFormat('EEEE, MMM d').format(date),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    color: Colors.white,
+                    fontSize: 16,
                   ),
-                  subtitle: Text(
-                    timeSlot.isNotEmpty
-                        ? '$timeSlot • $detailerName'
-                        : detailerName,
-                  ),
-                  trailing: isSelected
-                      ? const Icon(Icons.check_circle, color: Colors.cyan)
-                      : null,
-                  onTap: () {
-                    setState(() {
-                      _selectedBookingId = bookingId;
-                      _selectedDetailerId = data['assignedDetailerId'] ??
-                          data['assignedEmployeeId'];
-                      _selectedDetailerName = detailerName;
-                    });
-                  },
                 ),
-              );
-            },
-          ),
+                subtitle: Text(
+                  timeSlot.isNotEmpty
+                      ? '$timeSlot • $detailerName'
+                      : detailerName,
+                  style: const TextStyle(color: Colors.white70),
+                ),
+                trailing: isSelected
+                    ? Icon(Icons.check_circle, color: _accentColor, size: 28)
+                    : null,
+                onTap: () {
+                  setState(() {
+                    _selectedBookingId = bookingId;
+                    _selectedDetailerId = data['assignedDetailerId'] ??
+                        data['assignedEmployeeId'];
+                    _selectedDetailerName = detailerName;
+                  });
+                },
+              ),
+            );
+          },
         );
       },
     );
   }
 }
 
-// Star rating widget (unchanged)
+// Responsive Star Rating (no overflow on any phone size)
 class _StarRating extends StatelessWidget {
   final int value;
   final ValueChanged<int> onChanged;
+  final double screenWidth;
 
   const _StarRating({
-    Key? key,
     required this.value,
     required this.onChanged,
-  }) : super(key: key);
+    required this.screenWidth,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final starSize =
+        (screenWidth / 9).clamp(42.0, 52.0); // responsive between 42-52
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: List.generate(5, (i) {
         return IconButton(
-          iconSize: 48,
+          iconSize: starSize,
           icon: Icon(
             i < value ? Icons.star : Icons.star_border,
-            color: Colors.amber,
+            color: const Color(0xFFFFD700),
+            shadows: [
+              Shadow(
+                color: const Color(0xFFFFD700).withOpacity(0.7),
+                blurRadius: 14,
+              ),
+            ],
           ),
           onPressed: () => onChanged(i + 1),
         );
