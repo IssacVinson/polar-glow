@@ -1,6 +1,5 @@
 // lib/Screens/feedback_screen.dart
-// FULLY FIXED FILE — Replace your entire feedback_screen.dart with this exact code
-// (Preselected booking from the modal now ALWAYS appears, even if the main stream is slightly delayed)
+// UPDATED: Scroll box for completed bookings is now smaller (height reduced from 260 → 200)
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -230,10 +229,6 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     );
   }
 
-  // ──────────────────────────────────────────────────────────────
-  // FIXED: Preselected booking (from the modal) is now ALWAYS shown
-  // even if the main stream is a split-second behind.
-  // ──────────────────────────────────────────────────────────────
   Widget _buildCompletedBookingsPicker() {
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser == null) return const Text('Please sign in');
@@ -242,40 +237,50 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       stream: FirebaseFirestore.instance
           .collection('bookings')
           .where('customerId', isEqualTo: currentUser.uid)
+          .where('completed', isEqualTo: true)
           .orderBy('date', descending: true)
           .limit(12)
           .snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          final error = snapshot.error.toString();
+          if (error.contains('requires an index')) {
+            return Card(
+              color: Colors.amber[100],
+              child: const Padding(
+                padding: EdgeInsets.all(24),
+                child: Column(
+                  children: [
+                    Icon(Icons.warning_amber_rounded,
+                        size: 48, color: Colors.amber),
+                    SizedBox(height: 12),
+                    Text(
+                      'One-time setup needed',
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'Firebase needs a composite index for this query.\n'
+                      'Click the link in the terminal (or search "Firestore indexes" in console) and create it.\n'
+                      'It usually takes under 60 seconds.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+          return Center(child: Text('Error: $error'));
+        }
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        // All bookings for this customer
-        final allDocs = snapshot.data?.docs ?? [];
+        final docs = snapshot.data?.docs ?? [];
 
-        // Filter completed ones
-        var completedDocs = allDocs.where((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          return data['completed'] == true;
-        }).toList();
-
-        // FORCE the preselected booking into the list (handles timing / cache issues)
-        if (widget.preselectedBookingId != null) {
-          final alreadyIncluded =
-              completedDocs.any((doc) => doc.id == widget.preselectedBookingId);
-          if (!alreadyIncluded) {
-            // We'll add it manually as completed (the button only appears for completed bookings)
-            completedDocs.insert(
-                0,
-                allDocs.firstWhere(
-                  (doc) => doc.id == widget.preselectedBookingId,
-                  orElse: () =>
-                      allDocs.isNotEmpty ? allDocs.first : allDocs.first,
-                ));
-          }
-        }
-
-        if (completedDocs.isEmpty) {
+        if (docs.isEmpty) {
           return const Card(
             child: Padding(
               padding: EdgeInsets.all(24),
@@ -290,11 +295,11 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         }
 
         return SizedBox(
-          height: 260,
+          height: 200, // ← REDUCED from 260 → 200 (much shorter scroll box)
           child: ListView.builder(
-            itemCount: completedDocs.length,
+            itemCount: docs.length,
             itemBuilder: (context, index) {
-              final doc = completedDocs[index];
+              final doc = docs[index];
               final data = doc.data() as Map<String, dynamic>;
               final bookingId = doc.id;
               final date = (data['date'] as Timestamp).toDate();
