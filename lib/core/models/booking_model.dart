@@ -13,9 +13,17 @@ class BookingModel {
   final String notes;
   final String status;
 
-  // NEW: Stripe payment fields
-  final String paymentStatus; // 'unpaid' | 'paid' | 'cash_on_arrival'
-  final String? paymentIntentId;
+  // === NEW FINANCIAL TRACKING (clean unified structure) ===
+  final String paymentMethod; // 'stripe' | 'cash'
+  final String paymentStatus; // 'unpaid' | 'paid'
+  final String? paymentIntentId; // only populated for Stripe payments
+  final DateTime? paidAt; // when the payment was actually marked paid
+  final String?
+      paidBy; // UID of employee who marked cash payment as paid (audit trail)
+
+  // === NEW: Operation completion tracking (consistency with reimbursement pattern) ===
+  final DateTime? completedAt; // when employee marks the detail as completed
+  final String? completedBy; // UID of employee who completed the job
 
   BookingModel({
     required this.id,
@@ -28,8 +36,13 @@ class BookingModel {
     required this.address,
     required this.notes,
     this.status = 'pending',
-    this.paymentStatus = 'unpaid', // ← default
+    required this.paymentMethod, // must be set at booking time
+    this.paymentStatus = 'unpaid',
     this.paymentIntentId,
+    this.paidAt,
+    this.paidBy,
+    this.completedAt,
+    this.completedBy,
   });
 
   factory BookingModel.fromMap(Map<String, dynamic> map, String id) {
@@ -44,16 +57,25 @@ class BookingModel {
       address: map['address'] ?? '',
       notes: map['notes'] ?? '',
       status: map['status'] ?? 'pending',
+      // Finance fields
+      paymentMethod: map['paymentMethod'] ?? 'cash',
       paymentStatus: map['paymentStatus'] ?? 'unpaid',
       paymentIntentId: map['paymentIntentId'],
+      paidAt:
+          map['paidAt'] != null ? (map['paidAt'] as Timestamp).toDate() : null,
+      paidBy: map['paidBy'],
+      // Completion fields (new tweak)
+      completedAt: map['completedAt'] != null
+          ? (map['completedAt'] as Timestamp).toDate()
+          : null,
+      completedBy: map['completedBy'],
     );
   }
 
   Map<String, dynamic> toMap() {
     return {
       'customerId': customerId,
-      'date': Timestamp.fromDate(
-          AlaskaDateUtils.toAlaskaStorageDate(date)), // Stores correct AKST day
+      'date': Timestamp.fromDate(AlaskaDateUtils.toAlaskaStorageDate(date)),
       'cars': cars,
       'services': services,
       'totalPrice': totalPrice,
@@ -61,8 +83,22 @@ class BookingModel {
       'address': address,
       'notes': notes,
       'status': status,
-      'paymentStatus': paymentStatus, // ← NEW
-      'paymentIntentId': paymentIntentId, // ← NEW
+      // Finance fields
+      'paymentMethod': paymentMethod,
+      'paymentStatus': paymentStatus,
+      'paymentIntentId': paymentIntentId,
+      'paidAt': paidAt != null ? Timestamp.fromDate(paidAt!) : null,
+      'paidBy': paidBy,
+      // Completion fields
+      'completedAt':
+          completedAt != null ? Timestamp.fromDate(completedAt!) : null,
+      'completedBy': completedBy,
     };
   }
+
+  // Convenience getters for the new finance + operations logic
+  bool get isPaid => paymentStatus == 'paid';
+  bool get isStripePayment => paymentMethod == 'stripe';
+  bool get isCashPayment => paymentMethod == 'cash';
+  bool get isCompleted => completedAt != null;
 }

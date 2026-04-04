@@ -1,13 +1,15 @@
-// lib/screens/employee_finances_screen.dart
-// FIXED: Proper class name + distinct "My Finances" screen
-// FULL PREMIUM UPGRADE: Polar Glow dark theme + luxurious layout
-// - Clean financial overview (separate from Hours & Pay)
-// - Total earnings, approved reimbursements, pending items
-// - Reimbursement history with better visual breakdown
+// lib/screens/employee/employee_finances_screen.dart
+// FIXED & ALIGNED WITH NEW UNIFIED FINANCE SYSTEM
+// - Now uses top-level 'reimbursements' collection
+// - Uses FirestoreService + ReimbursementModel
+// - Premium Polar Glow dark theme preserved
+// - Removed unused 'status' variable (lint warning fixed)
 
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+
+import '../../core/models/reimbursement_model.dart';
+import '../../core/services/firestore_service.dart';
 
 class EmployeeFinancesScreen extends StatefulWidget {
   final String employeeId;
@@ -19,7 +21,9 @@ class EmployeeFinancesScreen extends StatefulWidget {
 }
 
 class _EmployeeFinancesScreenState extends State<EmployeeFinancesScreen> {
-  List<Map<String, dynamic>> _reimbursements = [];
+  final FirestoreService _firestore = FirestoreService();
+
+  List<ReimbursementModel> _reimbursements = [];
   double _totalApprovedReimbursements = 0.0;
   double _totalPendingReimbursements = 0.0;
   bool _isLoading = true;
@@ -37,41 +41,24 @@ class _EmployeeFinancesScreenState extends State<EmployeeFinancesScreen> {
   Future<void> _loadFinancesData() async {
     setState(() => _isLoading = true);
     try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(widget.employeeId)
-          .collection('reimbursements')
-          .orderBy('submittedAt', descending: true)
-          .get();
-
-      final claims = snapshot.docs.map((doc) {
-        final data = doc.data();
-        return {
-          'id': doc.id,
-          'date':
-              (data['submittedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-          'amount': (data['amount'] ?? 0.0).toDouble(),
-          'title': data['title'] ?? 'Reimbursement',
-          'status': data['status'] ?? 'submitted',
-        };
-      }).toList();
+      final reimbList = await _firestore.getEmployeeReimbursements(
+        widget.employeeId,
+      );
 
       double approvedTotal = 0.0;
       double pendingTotal = 0.0;
 
-      for (var claim in claims) {
-        final amount = claim['amount'] as double;
-        final status = claim['status'] as String;
-        if (status == 'approved' || status == 'paid') {
-          approvedTotal += amount;
-        } else if (status == 'submitted') {
-          pendingTotal += amount;
+      for (var claim in reimbList) {
+        if (claim.isApproved || claim.isPaid) {
+          approvedTotal += claim.amount;
+        } else if (claim.isPending) {
+          pendingTotal += claim.amount;
         }
       }
 
       if (mounted) {
         setState(() {
-          _reimbursements = claims;
+          _reimbursements = reimbList;
           _totalApprovedReimbursements = approvedTotal;
           _totalPendingReimbursements = pendingTotal;
           _isLoading = false;
@@ -208,16 +195,15 @@ class _EmployeeFinancesScreenState extends State<EmployeeFinancesScreen> {
                               itemBuilder: (context, index) {
                                 final claim = _reimbursements[index];
                                 final dateStr = DateFormat('MMM d, yyyy')
-                                    .format(claim['date']);
-                                final status = claim['status'] as String;
+                                    .format(claim.dateSubmitted);
 
                                 Color statusColor = Colors.orange;
                                 String statusText = 'Submitted';
 
-                                if (status == 'approved' || status == 'paid') {
+                                if (claim.isApproved || claim.isPaid) {
                                   statusColor = Colors.green;
                                   statusText = 'Approved';
-                                } else if (status == 'denied') {
+                                } else if (claim.isDenied) {
                                   statusColor = Colors.red;
                                   statusText = 'Denied';
                                 }
@@ -231,7 +217,7 @@ class _EmployeeFinancesScreenState extends State<EmployeeFinancesScreen> {
                                   child: ListTile(
                                     contentPadding: const EdgeInsets.all(16),
                                     title: Text(
-                                      claim['title'],
+                                      claim.title,
                                       style: const TextStyle(
                                           fontWeight: FontWeight.w600,
                                           color: Colors.white),
@@ -248,7 +234,7 @@ class _EmployeeFinancesScreenState extends State<EmployeeFinancesScreen> {
                                           CrossAxisAlignment.end,
                                       children: [
                                         Text(
-                                          '\$${claim['amount'].toStringAsFixed(2)}',
+                                          '\$${claim.amount.toStringAsFixed(2)}',
                                           style: TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.bold,

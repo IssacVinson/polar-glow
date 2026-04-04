@@ -98,7 +98,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
         }).toList();
       });
 
-      // Load slots for the initial selected day
       if (_selectedDay != null) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           _loadSlotsForDay(_selectedDay!);
@@ -186,7 +185,8 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
     _loadSlotsForDay(selectedDay);
   }
 
-  Future<DocumentReference?> _createBooking(String paymentStatus) async {
+  /// NEW: Creates booking with the unified paymentMethod (stripe or cash)
+  Future<DocumentReference?> _createBooking(String paymentMethod) async {
     if (!_formKey.currentState!.validate()) return null;
 
     if (_selectedDay == null) {
@@ -237,11 +237,13 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
       address: _addressController.text.trim(),
       notes: _notesController.text.trim(),
       status: 'pending',
-      paymentStatus: paymentStatus,
+      // === NEW UNIFIED FINANCE FIELDS ===
+      paymentMethod: paymentMethod, // 'stripe' or 'cash'
+      paymentStatus: 'unpaid', // always starts unpaid (Stripe confirms later)
     );
 
     try {
-      final docRef = await _firestore.createBooking(booking);
+      final docRef = await _firestore.createBookingWithPaymentMethod(booking);
 
       final dateStr = AlaskaDateUtils.toDateString(_selectedDay!);
       for (String? fullSlot in _selectedFullSlots) {
@@ -270,7 +272,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   Future<void> _payWithCard() async {
     setState(() => _isProcessingPayment = true);
 
-    final docRef = await _createBooking('unpaid');
+    final docRef = await _createBooking('stripe');
     if (docRef == null) {
       setState(() => _isProcessingPayment = false);
       return;
@@ -292,9 +294,9 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
       await Stripe.instance.presentPaymentSheet();
 
-      await _firestore.updateBookingPaymentStatus(
+      // NEW: Use the unified confirmation method
+      await _firestore.confirmStripePayment(
         bookingId: docRef.id,
-        paymentStatus: 'paid',
         paymentIntentId: paymentData['paymentIntentId'],
       );
 
@@ -319,7 +321,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   Future<void> _payCash() async {
     setState(() => _isProcessingPayment = true);
 
-    final docRef = await _createBooking('cash_on_arrival');
+    final docRef = await _createBooking('cash');
     if (docRef == null) {
       setState(() => _isProcessingPayment = false);
       return;

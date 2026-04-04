@@ -1,13 +1,22 @@
-// lib/Screens/admin_finance_screen.dart
-// UPGRADED: Premium dark theme with glowing cards + cyan accents
-// FIXED: Updated from old 'mileageClaims' → new 'reimbursements' collection
-// Fully consistent with EmployeeDashboard + all upgraded admin screens
+// lib/screens/admin/admin_finance_screen.dart
+// FIXED: All warnings resolved (FirebaseFirestore import added, unused method removed)
+// NEW UNIFIED FINANCE HUB - Step 5
+// - Summary cards using new data path
+// - Three clean sections: Bookings | Reimbursements | Payroll
+// - Full actions: approve/deny/pay reimbursements
+// - Premium Polar Glow dark theme preserved
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
-import '../core/utils/alaska_date_utils.dart';
+import '../../core/models/booking_model.dart';
+import '../../core/models/reimbursement_model.dart';
+import '../../core/models/wage_payout_model.dart';
+import '../../core/services/firestore_service.dart';
+import '../../Providers/auth_provider.dart' as app_auth;
+import '../../core/utils/alaska_date_utils.dart';
 
 class AdminFinanceScreen extends StatefulWidget {
   const AdminFinanceScreen({super.key});
@@ -17,98 +26,65 @@ class AdminFinanceScreen extends StatefulWidget {
 }
 
 class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
+  final FirestoreService _firestore = FirestoreService();
+
   double _moneyIn = 0.0;
   double _moneyOut = 0.0;
   double _netProfit = 0.0;
 
-  List<Map<String, dynamic>> _transactions = [];
+  List<BookingModel> _bookings = [];
+  List<ReimbursementModel> _reimbursements = [];
+  List<WagePayoutModel> _payouts = [];
+
   bool _isLoading = true;
 
-  // Polar Glow brand accent
   Color get _accentColor => const Color(0xFF00E5FF);
+
+  int _currentTab = 0; // 0=Bookings, 1=Reimbursements, 2=Payroll
 
   @override
   void initState() {
     super.initState();
-    _loadFinanceData();
+    _loadAllFinanceData();
   }
 
-  Future<void> _loadFinanceData() async {
+  Future<void> _loadAllFinanceData() async {
     setState(() => _isLoading = true);
 
     try {
-      // Money In: Paid bookings
-      final bookingsSnap = await FirebaseFirestore.instance
+      // Bookings (Money In)
+      final bookingSnap = await FirebaseFirestore.instance
           .collection('bookings')
-          .where('paid', isEqualTo: true)
+          .where('paymentStatus', isEqualTo: 'paid')
           .get();
 
-      double inTotal = 0.0;
-      final List<Map<String, dynamic>> trans = [];
+      final bookings = bookingSnap.docs
+          .map((doc) => BookingModel.fromMap(doc.data(), doc.id))
+          .toList();
 
-      for (var doc in bookingsSnap.docs) {
-        final data = doc.data();
-        final amount = (data['totalPrice'] ?? 0.0).toDouble();
-        inTotal += amount;
+      final moneyIn =
+          bookings.fold<double>(0.0, (sum, b) => sum + b.totalPrice);
 
-        trans.add({
-          'type': 'booking',
-          'bookingId': doc.id,
-          'title': 'Booking Payment',
-          'subtitle':
-              '${data['customerEmail'] ?? 'Customer'} • ${DateFormat('MMM d').format((data['date'] as Timestamp).toDate())}',
-          'amount': amount,
-          'date': (data['date'] as Timestamp).toDate(),
-          'isIn': true,
-          'data': data,
-        });
-      }
+      // Reimbursements
+      final reimbList = await _firestore.getAllReimbursementsForAdmin();
 
-      // Money Out: Approved / Paid Reimbursements (NEW system)
-      double outTotal = 0.0;
+      final moneyOutReimb = reimbList
+          .where((r) => r.isPaid)
+          .fold<double>(0.0, (sum, r) => sum + r.amount);
 
-      final employeesSnap = await FirebaseFirestore.instance
-          .collection('users')
-          .where('role', isEqualTo: 'employee')
-          .get();
-
-      for (var empDoc in employeesSnap.docs) {
-        final claimsSnap = await empDoc.reference
-            .collection('reimbursements') // ← Updated to new collection
-            .where('status',
-                whereIn: ['paid', 'accepted']) // only real money out
-            .get();
-
-        for (var claimDoc in claimsSnap.docs) {
-          final data = claimDoc.data();
-          final amount = (data['amount'] ?? 0.0).toDouble();
-          outTotal += amount;
-
-          trans.add({
-            'type': 'reimbursement',
-            'title': data['title'] ?? 'Reimbursement',
-            'subtitle':
-                '${empDoc['displayName'] ?? empDoc['email'] ?? 'Employee'}',
-            'amount': amount,
-            'date':
-                (data['submittedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-            'isIn': false,
-            'notes': data['description'] ?? '',
-            'status': data['status'],
-            'receiptUrl': data['receiptUrl'],
-          });
-        }
-      }
-
-      trans.sort(
-          (a, b) => (b['date'] as DateTime).compareTo(a['date'] as DateTime));
+      // Payouts (wages)
+      final payoutList = await _firestore.getAllPayoutsForAdmin();
+      final moneyOutWages =
+          payoutList.fold<double>(0.0, (sum, p) => sum + p.grossPay);
 
       if (mounted) {
         setState(() {
-          _moneyIn = inTotal;
-          _moneyOut = outTotal;
-          _netProfit = inTotal - outTotal;
-          _transactions = trans;
+          _bookings = bookings;
+          _reimbursements = reimbList;
+          _payouts = payoutList;
+          _moneyIn = moneyIn;
+          _moneyOut = moneyOutReimb + moneyOutWages;
+          _netProfit = moneyIn - _moneyOut;
           _isLoading = false;
         });
       }
@@ -116,350 +92,120 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
+            .showSnackBar(SnackBar(content: Text('Error loading finance: $e')));
       }
     }
   }
 
-  // Reused helper methods (same as before)
-  Future<Map<String, String>> _getCustomerFullInfo(String? customerId) async {
-    if (customerId == null || customerId.isEmpty)
-      return {'name': 'Unknown', 'phone': 'N/A', 'email': 'N/A'};
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(customerId)
-          .get();
-      if (userDoc.exists) {
-        final data = userDoc.data()!;
-        return {
-          'name': data['displayName'] ??
-              data['fullName'] ??
-              data['name'] ??
-              'No Name',
-          'phone': data['phoneNumber'] ?? data['phone'] ?? 'N/A',
-          'email': data['email'] ?? 'N/A',
-        };
-      }
-    } catch (_) {}
-    return {'name': 'Unknown', 'phone': 'N/A', 'email': 'N/A'};
+  Future<void> _approveReimbursement(String id) async {
+    final adminId = context.read<app_auth.AuthProvider>().user!.uid;
+    await _firestore.approveReimbursement(
+        reimbursementId: id, adminId: adminId);
+    _loadAllFinanceData();
   }
 
-  Future<String> _getEmployeeName(String? employeeId) async {
-    if (employeeId == null || employeeId.isEmpty) return 'Unassigned';
-    try {
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(employeeId)
-          .get();
-      if (userDoc.exists) {
-        final data = userDoc.data()!;
-        return data['displayName'] ??
-            data['fullName'] ??
-            data['name'] ??
-            (data['email']?.split('@')[0] ?? 'Unknown Employee');
-      }
-    } catch (_) {}
-    return 'Unknown Employee';
+  Future<void> _denyReimbursement(String id) async {
+    final adminId = context.read<app_auth.AuthProvider>().user!.uid;
+    await _firestore.denyReimbursement(reimbursementId: id, adminId: adminId);
+    _loadAllFinanceData();
   }
 
-  void _showBookingDetails(
-      BuildContext context, Map<String, dynamic> data) async {
-    final customerId = data['customerId'] ?? data['customerEmail'];
-    final assignedEmployeeId =
-        data['assignedEmployeeId'] ?? data['assignedDetailerId'];
-    final customerInfo = await _getCustomerFullInfo(customerId);
-    final employeeName = await _getEmployeeName(assignedEmployeeId);
-    final utcDate = (data['date'] as Timestamp).toDate();
-    final alaskaDate = AlaskaDateUtils.toAlaskaDayKey(utcDate);
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Booking Details',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    )),
-            const SizedBox(height: 20),
-            Text('Customer: ${customerInfo['name']}',
-                style: const TextStyle(color: Colors.white70)),
-            Text('Email: ${customerInfo['email']}',
-                style: const TextStyle(color: Colors.white70)),
-            Text('Phone: ${customerInfo['phone']}',
-                style: const TextStyle(color: Colors.white70)),
-            if (data['address'] != null)
-              Text('Address: ${data['address']}',
-                  style: const TextStyle(color: Colors.white70)),
-            Text('Date: ${DateFormat('MMM d, yyyy').format(alaskaDate)}',
-                style: const TextStyle(color: Colors.white70)),
-            Text(
-                'Time: ${data['cars']?[0]?['time'] ?? data['timeSlot'] ?? 'N/A'}',
-                style: const TextStyle(color: Colors.white70)),
-            Text('Assigned to: $employeeName',
-                style: const TextStyle(color: Colors.white70)),
-            Text('Total: \$${data['totalPrice']?.toStringAsFixed(2) ?? '0.00'}',
-                style: TextStyle(color: _accentColor, fontSize: 18)),
-            const SizedBox(height: 20),
-            const Text('Services:',
-                style: TextStyle(
-                    fontWeight: FontWeight.bold, color: Colors.white)),
-            ...((data['services'] as List?) ?? []).map((s) => Text(
-                '• ${s['name']} (\$${s['price']})',
-                style: const TextStyle(color: Colors.white70))),
-            if (data['notes'] != null && data['notes'].toString().isNotEmpty)
-              Text('Notes: ${data['notes']}',
-                  style: const TextStyle(color: Colors.white70)),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showReimbursementDetails(Map<String, dynamic> claim) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Reimbursement Details',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    )),
-            const SizedBox(height: 20),
-            Text('Title: ${claim['title']}',
-                style: const TextStyle(color: Colors.white70)),
-            Text('Amount: \$${claim['amount']?.toStringAsFixed(2) ?? '0.00'}',
-                style: TextStyle(color: _accentColor, fontSize: 18)),
-            Text('Date: ${DateFormat('MMM d, yyyy').format(claim['date'])}',
-                style: const TextStyle(color: Colors.white70)),
-            if (claim['notes'] != null && claim['notes'].isNotEmpty)
-              Text('Description: ${claim['notes']}',
-                  style: const TextStyle(color: Colors.white70)),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Close'),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
+  Future<void> _payReimbursement(String id) async {
+    final adminId = context.read<app_auth.AuthProvider>().user!.uid;
+    await _firestore.markReimbursementPaid(
+        reimbursementId: id, adminId: adminId);
+    _loadAllFinanceData();
   }
 
   @override
   Widget build(BuildContext context) {
-    final screenHeight = MediaQuery.of(context).size.height;
-    final isSmallScreen = screenHeight < 700;
-
     return Scaffold(
       backgroundColor: Colors.grey[900],
       appBar: AppBar(
-        title: const Text(
-          'Finance Overview',
-          style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
-        ),
+        title: const Text('Finance Hub',
+            style: TextStyle(fontWeight: FontWeight.w700)),
         backgroundColor: Colors.black87,
         foregroundColor: Colors.white,
         elevation: 4,
-        centerTitle: true,
       ),
       body: RefreshIndicator(
-        onRefresh: _loadFinanceData,
+        onRefresh: _loadAllFinanceData,
         color: _accentColor,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
-            : SingleChildScrollView(
-                padding: EdgeInsets.all(isSmallScreen ? 16 : 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Summary Cards with glow
-                    Row(
+            ? const Center(
+                child: CircularProgressIndicator(color: Color(0xFF00E5FF)))
+            : Column(
+                children: [
+                  // Summary Cards
+                  Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Row(
                       children: [
                         Expanded(
-                          child: _buildGlowSummaryCard(
-                            title: 'Money In',
-                            amount: _moneyIn,
-                            color: Colors.green,
-                            icon: Icons.arrow_downward_rounded,
-                          ),
+                          child:
+                              _summaryCard('Money In', _moneyIn, Colors.green),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
-                          child: _buildGlowSummaryCard(
-                            title: 'Money Out',
-                            amount: _moneyOut,
-                            color: Colors.orange,
-                            icon: Icons.arrow_upward_rounded,
-                          ),
+                          child: _summaryCard(
+                              'Money Out', _moneyOut, Colors.orange),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _summaryCard('Net Profit', _netProfit,
+                              _netProfit >= 0 ? Colors.cyan : Colors.red),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
-                    _buildGlowSummaryCard(
-                      title: 'Net Profit',
-                      amount: _netProfit,
-                      color: _netProfit >= 0 ? Colors.cyan : Colors.red,
-                      icon: _netProfit >= 0
-                          ? Icons.trending_up_rounded
-                          : Icons.trending_down_rounded,
-                      isBig: true,
+                  ),
+
+                  // Tabs
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: SegmentedButton<int>(
+                      selected: {_currentTab},
+                      onSelectionChanged: (set) =>
+                          setState(() => _currentTab = set.first),
+                      segments: const [
+                        ButtonSegment(value: 0, label: Text('Bookings')),
+                        ButtonSegment(value: 1, label: Text('Reimbursements')),
+                        ButtonSegment(value: 2, label: Text('Payroll')),
+                      ],
                     ),
-                    const SizedBox(height: 40),
+                  ),
 
-                    Text(
-                      'Recent Transactions',
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.white,
-                          ),
-                    ),
-                    const SizedBox(height: 16),
+                  const SizedBox(height: 16),
 
-                    _transactions.isEmpty
-                        ? const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(40),
-                              child: Text(
-                                'No transactions yet',
-                                style: TextStyle(color: Colors.white70),
-                              ),
-                            ),
-                          )
-                        : ListView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: _transactions.length,
-                            itemBuilder: (context, index) {
-                              final t = _transactions[index];
-                              final isIn = t['isIn'] as bool;
-
-                              return Card(
-                                margin: const EdgeInsets.only(bottom: 16),
-                                elevation: 16,
-                                shadowColor: _accentColor.withOpacity(0.4),
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(24)),
-                                color: Colors.grey[850],
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.symmetric(
-                                      horizontal: 24, vertical: 12),
-                                  leading: Icon(
-                                    isIn
-                                        ? Icons.arrow_downward_rounded
-                                        : Icons.arrow_upward_rounded,
-                                    color: isIn ? Colors.green : Colors.orange,
-                                    size: 28,
-                                  ),
-                                  title: Text(
-                                    t['title'],
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.w600),
-                                  ),
-                                  subtitle: Text(
-                                    t['subtitle'],
-                                    style:
-                                        const TextStyle(color: Colors.white70),
-                                  ),
-                                  trailing: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    crossAxisAlignment: CrossAxisAlignment.end,
-                                    children: [
-                                      Text(
-                                        '${isIn ? "+" : "-"}\$${t['amount'].toStringAsFixed(2)}',
-                                        style: TextStyle(
-                                          fontWeight: FontWeight.bold,
-                                          color: isIn
-                                              ? Colors.green
-                                              : Colors.orange,
-                                          fontSize: 16,
-                                        ),
-                                      ),
-                                      Text(
-                                        DateFormat('MMM d').format(t['date']),
-                                        style: const TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.white54),
-                                      ),
-                                    ],
-                                  ),
-                                  onTap: () {
-                                    if (t['type'] == 'booking') {
-                                      _showBookingDetails(context, t['data']);
-                                    } else {
-                                      _showReimbursementDetails(t);
-                                    }
-                                  },
-                                ),
-                              );
-                            },
-                          ),
-                  ],
-                ),
+                  // Tab Content
+                  Expanded(
+                    child: _currentTab == 0
+                        ? _buildBookingsTab()
+                        : _currentTab == 1
+                            ? _buildReimbursementsTab()
+                            : _buildPayrollTab(),
+                  ),
+                ],
               ),
       ),
     );
   }
 
-  Widget _buildGlowSummaryCard({
-    required String title,
-    required double amount,
-    required Color color,
-    required IconData icon,
-    bool isBig = false,
-  }) {
+  Widget _summaryCard(String title, double amount, Color color) {
     return Card(
-      elevation: 16,
-      shadowColor: color.withOpacity(0.5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      elevation: 12,
+      shadowColor: color.withOpacity(0.4),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       color: Colors.grey[850],
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(icon, color: color, size: isBig ? 32 : 24),
-                const SizedBox(width: 10),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                    fontSize: 16,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+            Text(title, style: const TextStyle(color: Colors.white70)),
+            const SizedBox(height: 8),
             Text(
               '\$${amount.toStringAsFixed(2)}',
               style: TextStyle(
-                fontSize: isBig ? 36 : 26,
+                fontSize: 22,
                 fontWeight: FontWeight.bold,
                 color: color,
               ),
@@ -467,6 +213,89 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildBookingsTab() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      itemCount: _bookings.length,
+      itemBuilder: (context, i) {
+        final b = _bookings[i];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          color: Colors.grey[850],
+          child: ListTile(
+            title: Text('Booking ${b.id.substring(0, 8)}'),
+            subtitle: Text(
+                '${AlaskaDateUtils.toDateString(b.date)} • \$${b.totalPrice.toStringAsFixed(2)}'),
+            trailing: Chip(
+              label: Text(b.isPaid ? 'PAID' : 'UNPAID'),
+              backgroundColor: b.isPaid ? Colors.green : Colors.orange,
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildReimbursementsTab() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      itemCount: _reimbursements.length,
+      itemBuilder: (context, i) {
+        final r = _reimbursements[i];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          color: Colors.grey[850],
+          child: ListTile(
+            title: Text(r.title),
+            subtitle:
+                Text('\$${r.amount.toStringAsFixed(2)} • ${r.employeeId}'),
+            trailing: r.isPending
+                ? Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.check, color: Colors.green),
+                        onPressed: () => _approveReimbursement(r.id),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.red),
+                        onPressed: () => _denyReimbursement(r.id),
+                      ),
+                    ],
+                  )
+                : r.isApproved
+                    ? IconButton(
+                        icon: const Icon(Icons.payment, color: Colors.blue),
+                        onPressed: () => _payReimbursement(r.id),
+                      )
+                    : const Chip(label: Text('Paid')),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildPayrollTab() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      itemCount: _payouts.length,
+      itemBuilder: (context, i) {
+        final p = _payouts[i];
+        return Card(
+          margin: const EdgeInsets.only(bottom: 12),
+          color: Colors.grey[850],
+          child: ListTile(
+            title: Text('Paid ${DateFormat('MMM d').format(p.paidAt)}'),
+            subtitle: Text('${p.totalHours.toStringAsFixed(1)} hrs'),
+            trailing: Text('\$${p.grossPay.toStringAsFixed(2)}',
+                style: const TextStyle(
+                    fontWeight: FontWeight.bold, color: Colors.green)),
+          ),
+        );
+      },
     );
   }
 }

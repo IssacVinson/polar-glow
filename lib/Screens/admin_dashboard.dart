@@ -1,6 +1,6 @@
 // lib/Screens/admin_dashboard.dart
-// FIXED: Resolved all bottom overflow issues (8.5px) by making cards taller + tighter internal spacing + smaller subtitle text
-// Premium dark theme with glowing cards + fully responsive for all phone sizes
+// FIXED: Text overflow on cards (especially "Promote Accounts" → now wraps cleanly)
+// Premium dark theme with glowing cards + fully responsive
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -56,7 +56,7 @@ class AdminDashboard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Welcome header (matches Employee Dashboard vibe)
+                // Welcome header
                 Row(
                   children: [
                     Icon(Icons.shield_rounded, size: 32, color: _accentColor),
@@ -70,9 +70,7 @@ class AdminDashboard extends StatelessWidget {
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
-                                ?.copyWith(
-                                  color: Colors.white70,
-                                ),
+                                ?.copyWith(color: Colors.white70),
                           ),
                           Text(
                             userName,
@@ -110,13 +108,12 @@ class AdminDashboard extends StatelessWidget {
                 ),
                 const SizedBox(height: 20),
 
-                // Responsive GridView - taller cards on small screens to prevent overflow
                 Expanded(
                   child: GridView.count(
                     crossAxisCount: 2,
                     crossAxisSpacing: 18,
                     mainAxisSpacing: 18,
-                    childAspectRatio: isSmallScreen ? 0.82 : 1.02,
+                    childAspectRatio: isSmallScreen ? 0.85 : 1.05,
                     children: [
                       _buildGlowCard(
                         context,
@@ -260,8 +257,7 @@ class AdminDashboard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         color: Colors.grey[850],
         child: Padding(
-          padding:
-              const EdgeInsets.all(18.0), // reduced from 20 to prevent overflow
+          padding: const EdgeInsets.all(18.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -271,11 +267,11 @@ class AdminDashboard extends StatelessWidget {
                 title,
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 16,
+                  fontSize: 15.5, // slightly smaller for better fit
                   fontWeight: FontWeight.w600,
                   color: Colors.white,
                 ),
-                maxLines: 1,
+                maxLines: 2, // allows wrapping
                 overflow: TextOverflow.ellipsis,
               ),
               const SizedBox(height: 6),

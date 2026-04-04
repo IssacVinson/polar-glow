@@ -1,3 +1,7 @@
+// lib/Screens/admin_schedule_calendar_screen.dart
+// UPDATED: Booking preview now shows BOTH Customer Name + Detailer Name at a glance
+// Green bubbles = available slots | Orange bubbles = bookings
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
@@ -25,182 +29,389 @@ class _AdminScheduleCalendarScreenState
   DateTime _focusedDay = DateTime.now();
   DateTime? _selectedDay;
 
-  Map<DateTime, List<Map<String, dynamic>>> _bookings = {};
-  Map<DateTime, List<String>> _availabilitySlots = {};
+  Map<DateTime, int> _bookingCounts = {};
+  Map<DateTime, int> _availabilitySlotCounts = {};
+
+  List<Map<String, dynamic>> _bookingsForSelectedDay = [];
+  List<Map<String, dynamic>> _availabilityForSelectedDay = [];
 
   @override
   void initState() {
     super.initState();
     _selectedDay = _focusedDay;
-    _loadEvents();
+    _loadAllCalendarData();
   }
 
-  Future<void> _loadEvents() async {
-    final startDate = _focusedDay.subtract(const Duration(days: 365));
-    final endDate = _focusedDay.add(const Duration(days: 365));
+  Future<void> _loadAllCalendarData() async {
+    final startStorage = AlaskaDateUtils.toAlaskaStorageDate(
+        _focusedDay.subtract(const Duration(days: 365)));
+    final endStorage = AlaskaDateUtils.toAlaskaStorageDate(
+        _focusedDay.add(const Duration(days: 365)));
 
-    final startStorage = AlaskaDateUtils.toAlaskaStorageDate(startDate);
-    final endStorage = AlaskaDateUtils.toAlaskaStorageDate(endDate);
+    final Map<DateTime, int> bookingCounts = {};
+    final Map<DateTime, int> slotCounts = {};
 
-    final Map<DateTime, List<Map<String, dynamic>>> newBookings = {};
-    final Map<DateTime, List<String>> newAvailability = {};
+    final bookingsSnapshot = await FirebaseFirestore.instance
+        .collection('bookings')
+        .where('date', isGreaterThanOrEqualTo: Timestamp.fromDate(startStorage))
+        .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endStorage))
+        .get();
 
-    try {
-      final bookingsSnapshot = await FirebaseFirestore.instance
-          .collection('bookings')
-          .where('date',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startStorage))
-          .where('date', isLessThanOrEqualTo: Timestamp.fromDate(endStorage))
-          .get();
+    for (var doc in bookingsSnapshot.docs) {
+      final data = doc.data();
+      final ts = (data['date'] as Timestamp?)?.toDate();
+      if (ts == null) continue;
+      if (widget.employeeId != null &&
+          data['assignedDetailerId'] != widget.employeeId) continue;
 
-      for (var doc in bookingsSnapshot.docs) {
-        final data = doc.data();
-        final timestamp = data['date'] as Timestamp;
-        final date = timestamp.toDate();
-        final dayKey = AlaskaDateUtils.toAlaskaDayKey(date);
+      final dayKey = AlaskaDateUtils.toAlaskaDayKey(ts);
+      bookingCounts[dayKey] = (bookingCounts[dayKey] ?? 0) + 1;
+    }
 
-        if (widget.employeeId == null ||
-            data['assignedDetailerId'] == widget.employeeId) {
-          newBookings.update(
-            dayKey,
-            (list) => list..add(data),
-            ifAbsent: () => [data],
-          );
+    final employeesSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'employee')
+        .get();
+
+    for (var empDoc in employeesSnapshot.docs) {
+      if (widget.employeeId != null && empDoc.id != widget.employeeId) continue;
+      final availabilitySnapshot =
+          await empDoc.reference.collection('availability').get();
+
+      for (var availDoc in availabilitySnapshot.docs) {
+        final slots = List<String>.from(availDoc.data()['timeSlots'] ?? []);
+        if (slots.isNotEmpty) {
+          final date = DateTime.parse(availDoc.id);
+          final dayKey = DateTime(date.year, date.month, date.day);
+          slotCounts[dayKey] = (slotCounts[dayKey] ?? 0) + slots.length;
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _bookingCounts = bookingCounts;
+        _availabilitySlotCounts = slotCounts;
+      });
+    }
+  }
+
+  Future<void> _loadDayDetails(DateTime day) async {
+    final storageDate = AlaskaDateUtils.toAlaskaStorageDate(day);
+
+    var bookingQuery = FirebaseFirestore.instance
+        .collection('bookings')
+        .where('date', isEqualTo: Timestamp.fromDate(storageDate));
+
+    if (widget.employeeId != null) {
+      bookingQuery = bookingQuery.where('assignedDetailerId',
+          isEqualTo: widget.employeeId);
+    }
+
+    final bookingSnap = await bookingQuery.get();
+
+    final List<Map<String, dynamic>> bookings = [];
+    for (var doc in bookingSnap.docs) {
+      final data = doc.data();
+
+      // Real customer name
+      String customerName = data['customerEmail'] ?? 'Unknown';
+      final customerId = data['customerId'] as String?;
+      if (customerId != null) {
+        final userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(customerId)
+            .get();
+        if (userDoc.exists) {
+          final u = userDoc.data()!;
+          customerName =
+              u['displayName'] ?? u['fullName'] ?? u['email'] ?? customerName;
         }
       }
 
-      final employeesSnapshot = await FirebaseFirestore.instance
+      // Real detailer name
+      String detailerName = 'Unassigned';
+      final assignedId = data['assignedDetailerId'] as String?;
+      if (assignedId != null) {
+        final empDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(assignedId)
+            .get();
+        if (empDoc.exists) {
+          final e = empDoc.data()!;
+          detailerName =
+              e['displayName'] ?? e['fullName'] ?? e['email'] ?? 'Unassigned';
+        }
+      }
+
+      bookings.add({
+        'id': doc.id,
+        ...data,
+        'customerName': customerName,
+        'detailerName': detailerName,
+      });
+    }
+
+    // Availability
+    final List<Map<String, dynamic>> availList = [];
+    final employeesSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'employee')
+        .get();
+
+    for (var empDoc in employeesSnapshot.docs) {
+      if (widget.employeeId != null && empDoc.id != widget.employeeId) continue;
+
+      final dateStr = AlaskaDateUtils.toDateString(day);
+      final availDoc =
+          await empDoc.reference.collection('availability').doc(dateStr).get();
+
+      if (availDoc.exists) {
+        final slots = List<String>.from(availDoc.data()?['timeSlots'] ?? []);
+        if (slots.isNotEmpty) {
+          final name = empDoc.data()['displayName'] ??
+              empDoc.data()['fullName'] ??
+              empDoc.data()['email'] ??
+              'Unknown Employee';
+
+          availList.add({
+            'employeeName': name,
+            'slots': slots,
+          });
+        }
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        _bookingsForSelectedDay = bookings;
+        _availabilityForSelectedDay = availList;
+      });
+    }
+  }
+
+  void _showBookingDetails(Map<String, dynamic> booking) async {
+    // (same rich detail sheet as before)
+    final customerId = booking['customerId'] as String?;
+    String customerName =
+        booking['customerName'] ?? booking['customerEmail'] ?? 'Unknown';
+    String customerPhone = '';
+    String customerEmail = booking['customerEmail'] ?? '';
+
+    String detailerName = booking['detailerName'] ?? 'Unassigned';
+
+    if (customerId != null) {
+      final userDoc = await FirebaseFirestore.instance
           .collection('users')
-          .where('role', isEqualTo: 'employee')
+          .doc(customerId)
           .get();
-
-      for (var empDoc in employeesSnapshot.docs) {
-        if (widget.employeeId != null && empDoc.id != widget.employeeId)
-          continue;
-
-        final availabilitySnapshot =
-            await empDoc.reference.collection('availability').get();
-
-        for (var availDoc in availabilitySnapshot.docs) {
-          final dateStr = availDoc.id;
-          try {
-            final date = DateTime.parse(dateStr);
-            if (date.isBefore(startDate) || date.isAfter(endDate)) continue;
-
-            final data = availDoc.data();
-            final slots = List<String>.from(data['timeSlots'] ?? []);
-
-            if (slots.isNotEmpty) {
-              final dayKey = DateTime.parse(dateStr);
-              newAvailability.update(
-                dayKey,
-                (list) => list..addAll(slots),
-                ifAbsent: () => List.from(slots),
-              );
-            }
-          } catch (_) {}
-        }
-      }
-
-      if (mounted) {
-        setState(() {
-          _bookings = newBookings;
-          _availabilitySlots = newAvailability;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Failed to load: $e')));
+      if (userDoc.exists) {
+        final u = userDoc.data()!;
+        customerName = u['displayName'] ?? u['fullName'] ?? customerName;
+        customerPhone = u['phoneNumber'] ?? u['phone'] ?? '';
+        customerEmail = u['email'] ?? customerEmail;
       }
     }
+
+    if (!mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.grey[900],
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+          left: 24,
+          right: 24,
+          top: 24,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 48,
+                  height: 5,
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
+                'Booking Details',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Colors.white,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                DateFormat('EEEE, MMMM d, yyyy • h:mm a').format(
+                  AlaskaDateUtils.toAlaskaDayKey(
+                      (booking['date'] as Timestamp).toDate()),
+                ),
+                style: const TextStyle(color: Colors.white70),
+              ),
+              const SizedBox(height: 24),
+              _detailRow('Customer', customerName),
+              if (customerPhone.isNotEmpty) _detailRow('Phone', customerPhone),
+              if (customerEmail.isNotEmpty) _detailRow('Email', customerEmail),
+              _detailRow('Detailer', detailerName),
+              _detailRow('Address', booking['address'] ?? '—'),
+              const Divider(height: 32),
+              const Text('Services',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              ...(booking['services'] as List? ?? []).map((s) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      '• ${s['name']} (\$${s['price']})',
+                      style: const TextStyle(color: Colors.white70),
+                    ),
+                  )),
+              const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Total', style: TextStyle(fontSize: 18)),
+                  Text(
+                    '\$${(booking['totalPrice'] ?? 0.0).toStringAsFixed(2)}',
+                    style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF00E5FF),
+                    ),
+                  ),
+                ],
+              ),
+              if (booking['notes']?.toString().isNotEmpty == true) ...[
+                const SizedBox(height: 24),
+                const Text('Notes',
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                Text(booking['notes'],
+                    style: const TextStyle(color: Colors.white70)),
+              ],
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Close'),
+                ),
+              ),
+              const SizedBox(height: 12),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
-  List<String> _getAvailabilityForDay(DateTime day) {
-    final dayKey = DateTime(day.year, day.month, day.day);
-    final rawSlots = _availabilitySlots[dayKey] ?? [];
-
-    final sorted = List<String>.from(rawSlots);
-    sorted.sort((a, b) {
-      final minutesA = _parseStartMinutes(a);
-      final minutesB = _parseStartMinutes(b);
-      return minutesA.compareTo(minutesB);
-    });
-
-    return sorted;
-  }
-
-  int _parseStartMinutes(String slot) {
-    try {
-      final parts = slot.split(' – ');
-      final startStr = parts[0].trim();
-      final format = DateFormat('h:mm a');
-      final dt = format.parse(startStr);
-      return dt.hour * 60 + dt.minute;
-    } catch (_) {
-      return 0;
-    }
-  }
-
-  int _getBookingCount(DateTime day) {
-    final dayKey = DateTime(day.year, day.month, day.day);
-    return _bookings[dayKey]?.length ?? 0;
-  }
-
-  List<Map<String, dynamic>> _getBookingsForDay(DateTime day) {
-    final dayKey = DateTime(day.year, day.month, day.day);
-    return _bookings[dayKey] ?? [];
+  Widget _detailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 90,
+            child: Text(label, style: const TextStyle(color: Colors.white54)),
+          ),
+          Expanded(
+            child: Text(value, style: const TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final calendarCard = Card(
       margin: const EdgeInsets.all(16),
-      child: TableCalendar(
-        firstDay: DateTime.now().subtract(const Duration(days: 365)),
-        lastDay: DateTime.now().add(const Duration(days: 365)),
-        focusedDay: _focusedDay,
-        selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
-        onDaySelected: (selectedDay, focusedDay) {
-          setState(() {
-            _selectedDay = selectedDay;
-            _focusedDay = focusedDay;
-          });
-        },
-        // ── REMOVED "2 weeks" BUTTON FOREVER ──
-        headerStyle: const HeaderStyle(
-          formatButtonVisible: false, // hides the 2 weeks / month toggle
-          titleCentered: true,
-          leftChevronVisible: true,
-          rightChevronVisible: true,
-        ),
-        calendarFormat: CalendarFormat.month, // locked to month view only
-        calendarBuilders: CalendarBuilders(
-          markerBuilder: (context, day, _) {
-            final bookingCount = _getBookingCount(day);
-            if (bookingCount > 0) {
+      elevation: 8,
+      shadowColor: const Color(0xFF00E5FF).withOpacity(0.3),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      color: Colors.grey[850],
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: TableCalendar(
+          firstDay: DateTime.now().subtract(const Duration(days: 365)),
+          lastDay: DateTime.now().add(const Duration(days: 365)),
+          focusedDay: _focusedDay,
+          selectedDayPredicate: (day) => isSameDay(_selectedDay, day),
+          onDaySelected: (selectedDay, focusedDay) {
+            setState(() {
+              _selectedDay = selectedDay;
+              _focusedDay = focusedDay;
+            });
+            _loadDayDetails(selectedDay);
+          },
+          headerStyle: const HeaderStyle(
+            formatButtonVisible: false,
+            titleCentered: true,
+          ),
+          calendarFormat: CalendarFormat.month,
+          calendarBuilders: CalendarBuilders(
+            markerBuilder: (context, day, _) {
+              final dayKey = DateTime(day.year, day.month, day.day);
+              final bookingCount = _bookingCounts[dayKey] ?? 0;
+              final slotCount = _availabilitySlotCounts[dayKey] ?? 0;
+
+              if (bookingCount == 0 && slotCount == 0) return null;
+
               return Positioned(
-                right: 6,
-                top: 6,
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Colors.orange,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Text(
-                    bookingCount.toString(),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                right: 4,
+                top: 4,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (slotCount > 0)
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF00E5FF),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          slotCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.black,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    const SizedBox(width: 2),
+                    if (bookingCount > 0)
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.orange,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Text(
+                          bookingCount.toString(),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
               );
-            }
-            return null;
-          },
+            },
+          ),
         ),
       ),
     );
@@ -213,25 +424,37 @@ class _AdminScheduleCalendarScreenState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
+                  widget.employeeId == null
+                      ? 'All Employees'
+                      : 'Employee Schedule',
+                  style: const TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF00E5FF)),
+                ),
+                const SizedBox(height: 4),
+                Text(
                   DateFormat('EEEE, MMMM d, yyyy').format(_selectedDay!),
                   style: const TextStyle(
                       fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const SizedBox(height: 12),
-                if (_getBookingCount(_selectedDay!) > 0) ...[
+                const SizedBox(height: 16),
+                if (_bookingsForSelectedDay.isNotEmpty) ...[
                   const Text('📅 Scheduled Bookings',
                       style:
                           TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 8),
-                  ..._getBookingsForDay(_selectedDay!).map((data) => Card(
+                  ..._bookingsForSelectedDay.map((data) => Card(
                         margin: const EdgeInsets.only(bottom: 12),
+                        color: Colors.grey[850],
                         child: ListTile(
                           leading: const Icon(Icons.event_busy,
                               color: Colors.orange),
                           title: Text(
-                              '${data['cars']?[0]?['time'] ?? 'No time'} — ${data['customerEmail'] ?? 'Customer'}'),
+                              '${data['cars']?[0]?['time'] ?? 'No time'} — ${data['customerName']}'),
                           subtitle: Text(
-                              '${data['cars']?[0]?['vehicle'] ?? ''} • \$${data['totalPrice'] ?? 0}'),
+                              'Detailer: ${data['detailerName']} \n${data['cars']?[0]?['vehicle'] ?? ''} • \$${data['totalPrice'] ?? 0}'),
+                          onTap: () => _showBookingDetails(data),
                         ),
                       )),
                 ] else
@@ -239,38 +462,51 @@ class _AdminScheduleCalendarScreenState
                     padding: EdgeInsets.all(16),
                     child: Text('No bookings on this day'),
                   ),
-                if (_getAvailabilityForDay(_selectedDay!).isNotEmpty) ...[
+                if (_availabilityForSelectedDay.isNotEmpty) ...[
                   const SizedBox(height: 16),
-                  const Text('🟢 Open Availability',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _getAvailabilityForDay(_selectedDay!)
-                        .map((slot) => Chip(
-                              label: Text(slot),
-                              backgroundColor: Colors.green.withOpacity(0.2),
-                            ))
-                        .toList(),
-                  ),
+                  const Text('🟢 Available Time Slots',
+                      style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF00E5FF))),
+                  const SizedBox(height: 12),
+                  ..._availabilityForSelectedDay.map((emp) => Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            emp['employeeName'],
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white70),
+                          ),
+                          const SizedBox(height: 6),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 8,
+                            children: (emp['slots'] as List<String>)
+                                .map((slot) => Chip(
+                                      label: Text(slot),
+                                      backgroundColor:
+                                          Colors.green.withOpacity(0.2),
+                                      labelStyle:
+                                          const TextStyle(color: Colors.white),
+                                    ))
+                                .toList(),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+                      )),
                 ],
               ],
             ),
           );
 
-    // Embedded mode (used inside employee details tab)
     if (!widget.showAppBar) {
       return Column(
-        children: [
-          calendarCard,
-          Expanded(child: content),
-        ],
+        children: [calendarCard, Expanded(child: content)],
       );
     }
 
-    // Full screen mode
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.employeeId == null

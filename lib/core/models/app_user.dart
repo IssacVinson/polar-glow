@@ -6,6 +6,7 @@ class AppUser {
   final String? displayName;
   final String role;
   final String? phoneNumber;
+  final double? hourlyRate; // NEW: for payroll + admin pay rate management
 
   AppUser({
     required this.uid,
@@ -13,6 +14,7 @@ class AppUser {
     this.displayName,
     required this.role,
     this.phoneNumber,
+    this.hourlyRate,
   });
 
   factory AppUser.fromDocument(DocumentSnapshot doc) {
@@ -23,6 +25,22 @@ class AppUser {
       displayName: data['displayName'],
       role: (data['role'] as String?)?.toLowerCase() ?? 'customer',
       phoneNumber: data['phone'],
+      hourlyRate: (data['hourlyRate'] as num?)?.toDouble(),
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'email': email,
+      'displayName': displayName,
+      'role': role,
+      'phone': phoneNumber,
+      'hourlyRate': hourlyRate,
+    };
+  }
+
+  // Convenience getters for finance/payroll logic
+  bool get isEmployee => role == 'employee' || role == 'admin';
+  bool get isAdmin => role == 'admin';
+  bool get isCustomer => role == 'customer';
 }

@@ -1,9 +1,8 @@
 // lib/screens/employee_clock_screen.dart
-// FULL PREMIUM UPGRADE: Polar Glow dark theme + luxurious layout
-// - Icy cyan glow accents everywhere
-// - Large dramatic clock status card with live updating timer (updates every second when clocked in)
-// - Beautiful elevated cards and modern typography
-// - All original functionality preserved 100% (toggle, refresh, edit times, validation, Firestore sync)
+// FIXED: Clocked-in detection now works correctly with newest-first query
+// - Robust pairing logic (handles descending order from Firestore)
+// - Supports both 'in'/'out' and legacy 'clock_in'/'clock_out'
+// - Live timer, premium UI, and all original features preserved
 
 import 'dart:async';
 
@@ -43,7 +42,6 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
     super.dispose();
   }
 
-  // Live timer that updates duration every second when clocked in
   void _startLiveTimer() {
     _liveTimer?.cancel();
     _liveTimer = Timer.periodic(const Duration(seconds: 1), (_) {
@@ -59,18 +57,24 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
       final uid = context.read<app_auth.AuthProvider>().user!.uid;
       final events = await _firestore.getClockEventsFuture(uid);
 
+      // ── FIXED: Correctly detect if currently clocked in ──
+      // We make a chronological copy (oldest first) for pairing logic
+      final chronological = List<ClockEventModel>.from(events)
+        ..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
       DateTime? openIn;
-      for (var event in events) {
-        if (event.type == 'in') {
+      for (var event in chronological) {
+        final type = event.type.toLowerCase();
+        if (type == 'in' || type == 'clock_in') {
           openIn = event.timestamp;
-        } else if (event.type == 'out' && openIn != null) {
+        } else if ((type == 'out' || type == 'clock_out') && openIn != null) {
           openIn = null;
         }
       }
 
       if (mounted) {
         setState(() {
-          _recentEvents = events;
+          _recentEvents = events; // keep newest-first for UI
           _isClockedIn = openIn != null;
           _lastClockInTime = openIn;
           _isLoading = false;
@@ -96,15 +100,17 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
     final now = DateTime.now();
     final type = _isClockedIn ? 'out' : 'in';
 
+    // Optimistic UI update
     setState(() {
       _isClockedIn = !_isClockedIn;
       _recentEvents.insert(
         0,
         ClockEventModel(
-            id: 'temp',
-            type: type,
-            timestamp: now,
-            date: DateFormat('yyyy-MM-dd').format(now)),
+          id: 'temp',
+          type: type,
+          timestamp: now,
+          date: DateFormat('yyyy-MM-dd').format(now),
+        ),
       );
       if (type == 'in') {
         _lastClockInTime = now;
@@ -118,9 +124,10 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
       await _refreshClockData();
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Clocked $type')));
+            .showSnackBar(SnackBar(content: Text('✅ Clocked $type')));
       }
     } catch (e) {
+      // Revert optimistic update on failure
       if (mounted) {
         setState(() {
           _isClockedIn = !_isClockedIn;
@@ -137,6 +144,7 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
     }
   }
 
+  // Rest of your methods unchanged (edit, validation, formatting, etc.)
   Future<void> _editEventTime(String docId, DateTime currentTime) async {
     final newDate = await showDatePicker(
       context: context,
@@ -203,13 +211,13 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
 
     DateTime? lastIn;
     for (var e in tempEvents) {
-      final type = e['type'] as String;
+      final type = (e['type'] as String).toLowerCase();
       final time = e['time'] as DateTime;
 
-      if (type == 'in') {
+      if (type == 'in' || type == 'clock_in') {
         if (lastIn != null) return false;
         lastIn = time;
-      } else if (type == 'out') {
+      } else if (type == 'out' || type == 'clock_out') {
         if (lastIn == null) return false;
         if (time.isBefore(lastIn)) return false;
         lastIn = null;
@@ -239,9 +247,10 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
         _recentEvents.where((e) => !e.timestamp.isBefore(todayStart)).toList();
 
     for (var event in todayEvents.reversed) {
-      if (event.type == 'in') {
+      final type = event.type.toLowerCase();
+      if (type == 'in' || type == 'clock_in') {
         openIn ??= event.timestamp;
-      } else if (event.type == 'out' && openIn != null) {
+      } else if ((type == 'out' || type == 'clock_out') && openIn != null) {
         total += event.timestamp.difference(openIn);
         openIn = null;
       }
@@ -278,7 +287,6 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Date header
               Text(
                 todayStr,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -290,7 +298,7 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
 
               const SizedBox(height: 40),
 
-              // Main Clock Status Card (huge + premium)
+              // Main Clock Status Card
               Card(
                 elevation: 16,
                 shadowColor: _isClockedIn
@@ -320,7 +328,6 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
                           ),
                         ),
                         const SizedBox(height: 24),
-
                         if (_isClockedIn && _lastClockInTime != null) ...[
                           Text(
                             'Since ${DateFormat('HH:mm:ss').format(_lastClockInTime!)}',
@@ -346,10 +353,7 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
                             style:
                                 TextStyle(fontSize: 18, color: Colors.white54),
                           ),
-
                         const SizedBox(height: 40),
-
-                        // Big toggle button
                         FilledButton.icon(
                           icon: Icon(
                             _isClockedIn ? Icons.logout : Icons.login,
@@ -384,7 +388,6 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
 
               const SizedBox(height: 40),
 
-              // Today's total
               Container(
                 padding:
                     const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
@@ -414,7 +417,6 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
 
               const SizedBox(height: 32),
 
-              // Recent history
               Text(
                 'Recent Clock History',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -444,14 +446,21 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
                             ),
                             child: ListTile(
                               leading: Icon(
-                                e.type == 'in' ? Icons.login : Icons.logout,
-                                color: e.type == 'in'
+                                (e.type.toLowerCase() == 'in' ||
+                                        e.type.toLowerCase() == 'clock_in')
+                                    ? Icons.login
+                                    : Icons.logout,
+                                color: (e.type.toLowerCase() == 'in' ||
+                                        e.type.toLowerCase() == 'clock_in')
                                     ? const Color(0xFF00E5FF)
                                     : Colors.redAccent,
                                 size: 32,
                               ),
                               title: Text(
-                                e.type == 'in' ? 'Clocked In' : 'Clocked Out',
+                                (e.type.toLowerCase() == 'in' ||
+                                        e.type.toLowerCase() == 'clock_in')
+                                    ? 'Clocked In'
+                                    : 'Clocked Out',
                                 style: const TextStyle(
                                   fontWeight: FontWeight.w600,
                                   color: Colors.white,

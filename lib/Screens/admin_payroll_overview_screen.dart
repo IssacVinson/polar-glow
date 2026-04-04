@@ -1,10 +1,16 @@
-// lib/Screens/admin_payroll_overview_screen.dart
-// UPGRADED: Premium dark theme with glowing cards + cyan accents
-// Fully consistent with EmployeeDashboard + all upgraded admin screens
+// lib/screens/admin/admin_payroll_overview_screen.dart
+// FIXED & UPDATED FOR NEW UNIFIED FINANCE PATH
+// - Added missing FirebaseFirestore import
+// - Proper QuerySnapshot typing + safe null handling
+// - Uses FirestoreService.calculateEmployeePay()
+// - Premium Polar Glow dark theme preserved
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../../core/services/firestore_service.dart';
+import '../../Providers/auth_provider.dart' as app_auth;
 import 'admin_hours_pay_screen.dart';
 
 class AdminPayrollOverviewScreen extends StatefulWidget {
@@ -19,6 +25,8 @@ class _AdminPayrollOverviewScreenState
     extends State<AdminPayrollOverviewScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+
+  final FirestoreService _firestore = FirestoreService();
 
   // Polar Glow brand accent
   Color get _accentColor => const Color(0xFF00E5FF);
@@ -71,7 +79,7 @@ class _AdminPayrollOverviewScreenState
                 style: const TextStyle(color: Colors.white),
                 decoration: InputDecoration(
                   labelText: 'Search by name or email',
-                  labelStyle: TextStyle(color: Colors.white70),
+                  labelStyle: const TextStyle(color: Colors.white70),
                   prefixIcon: Icon(Icons.search, color: _accentColor),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
@@ -141,7 +149,11 @@ class _AdminPayrollOverviewScreenState
                         'Unknown';
 
                     return FutureBuilder<Map<String, dynamic>>(
-                      future: _calculateEmployeeSummary(employeeId),
+                      future: _firestore.calculateEmployeePay(
+                        employeeId,
+                        DateTime.now().subtract(const Duration(days: 14)),
+                        DateTime.now(),
+                      ),
                       builder: (context, summarySnapshot) {
                         if (summarySnapshot.connectionState ==
                             ConnectionState.waiting) {
@@ -161,7 +173,15 @@ class _AdminPayrollOverviewScreenState
                         }
 
                         final summary = summarySnapshot.data ??
-                            {'hours': '0h 0m', 'pay': 0.0, 'rate': 20.0};
+                            {
+                              'totalHours': 0.0,
+                              'grossPay': 0.0,
+                              'hourlyRate': 20.0
+                            };
+
+                        final hours = summary['totalHours'] as double;
+                        final pay = summary['grossPay'] as double;
+                        final rate = summary['hourlyRate'] as double;
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 20),
@@ -188,7 +208,7 @@ class _AdminPayrollOverviewScreenState
                                   color: Colors.white),
                             ),
                             subtitle: Text(
-                              'Total Hours: ${summary['hours']}',
+                              'Total Hours: ${hours.toStringAsFixed(1)} h',
                               style: const TextStyle(color: Colors.white70),
                             ),
                             trailing: Column(
@@ -196,14 +216,14 @@ class _AdminPayrollOverviewScreenState
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  '\$${summary['pay'].toStringAsFixed(2)}',
+                                  '\$${pay.toStringAsFixed(2)}',
                                   style: const TextStyle(
                                       fontSize: 17,
                                       fontWeight: FontWeight.bold,
                                       color: Colors.green),
                                 ),
                                 Text(
-                                  '\$${summary['rate'].toStringAsFixed(2)}/hr',
+                                  '\$${rate.toStringAsFixed(2)}/hr',
                                   style: const TextStyle(
                                       fontSize: 12.5, color: Colors.white54),
                                 ),
@@ -229,52 +249,5 @@ class _AdminPayrollOverviewScreenState
         ],
       ),
     );
-  }
-
-  Future<Map<String, dynamic>> _calculateEmployeeSummary(
-      String employeeId) async {
-    try {
-      final now = DateTime.now();
-      final startOfPeriod = now.subtract(const Duration(days: 14));
-
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(employeeId)
-          .collection('clock_events')
-          .where('timestamp',
-              isGreaterThanOrEqualTo: Timestamp.fromDate(startOfPeriod))
-          .orderBy('timestamp')
-          .get();
-
-      Duration total = Duration.zero;
-      DateTime? openIn;
-      for (var doc in snapshot.docs) {
-        final data = doc.data();
-        final time = (data['timestamp'] as Timestamp).toDate();
-        final type = data['type'] as String;
-
-        if (type == 'in') {
-          openIn = time;
-        } else if (type == 'out' && openIn != null) {
-          total += time.difference(openIn);
-          openIn = null;
-        }
-      }
-      if (openIn != null) total += DateTime.now().difference(openIn);
-
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(employeeId)
-          .get();
-      final hourlyRate = (userDoc.data()?['hourlyRate'] ?? 20.0).toDouble();
-
-      final hoursStr = '${total.inHours}h ${total.inMinutes % 60}m';
-      final pay = (total.inMinutes / 60) * hourlyRate;
-
-      return {'hours': hoursStr, 'pay': pay, 'rate': hourlyRate};
-    } catch (e) {
-      print('Payroll calc error for $employeeId: $e');
-      return {'hours': 'Error', 'pay': 0.0, 'rate': 20.0};
-    }
   }
 }

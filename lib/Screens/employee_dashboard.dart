@@ -1,5 +1,5 @@
 // lib/screens/employee_dashboard.dart
-// FIXED: Updated import and widget reference from old mileage screen → new reimbursement screen
+// UPDATED: Added "My Bookings" card for the new dedicated management screen
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -10,8 +10,9 @@ import 'employee_calendar_view.dart';
 import 'employee_hours_pay_screen.dart';
 import 'employee_finances_screen.dart';
 import 'profile_screen.dart';
-import 'employee_reimbursement_screen.dart'; // ← Reimbursement screen (formerly mileage)
+import 'employee_reimbursement_screen.dart';
 import 'reviews_screen.dart';
+import 'employee_bookings_screen.dart'; // ← NEW: Dedicated bookings management
 
 class EmployeeDashboard extends StatelessWidget {
   const EmployeeDashboard({super.key});
@@ -160,6 +161,15 @@ class EmployeeDashboard extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                                 builder: (_) => const ProfileScreen()));
+                      }),
+                      // === NEW CARD ===
+                      _buildPremiumCard(context, Icons.directions_car_outlined,
+                          'My Bookings', const Color(0xFF00E5FF), () {
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) =>
+                                    const EmployeeBookingsScreen()));
                       }),
                     ],
                   ),
