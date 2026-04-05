@@ -1,9 +1,9 @@
 // lib/screens/admin/admin_payroll_overview_screen.dart
-// FIXED & UPDATED FOR NEW UNIFIED FINANCE PATH
-// - Added missing FirebaseFirestore import
-// - Proper QuerySnapshot typing + safe null handling
-// - Uses FirestoreService.calculateEmployeePay()
-// - Premium Polar Glow dark theme preserved
+// UPDATED: New dynamic payroll system
+// - Unpaid Hours = hours since last payout (dynamic, no fixed 14-day period)
+// - Shows Projected Payout + Hourly Rate
+// - Uses new calculateEmployeePay() that returns unpaidHours + projectedPayout
+// - Premium dark theme preserved
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
@@ -151,7 +151,6 @@ class _AdminPayrollOverviewScreenState
                     return FutureBuilder<Map<String, dynamic>>(
                       future: _firestore.calculateEmployeePay(
                         employeeId,
-                        DateTime.now().subtract(const Duration(days: 14)),
                         DateTime.now(),
                       ),
                       builder: (context, summarySnapshot) {
@@ -174,13 +173,14 @@ class _AdminPayrollOverviewScreenState
 
                         final summary = summarySnapshot.data ??
                             {
-                              'totalHours': 0.0,
-                              'grossPay': 0.0,
-                              'hourlyRate': 20.0
+                              'unpaidHours': 0.0,
+                              'projectedPayout': 0.0,
+                              'hourlyRate': 0.0,
                             };
 
-                        final hours = summary['totalHours'] as double;
-                        final pay = summary['grossPay'] as double;
+                        final unpaidHours = summary['unpaidHours'] as double;
+                        final projectedPayout =
+                            summary['projectedPayout'] as double;
                         final rate = summary['hourlyRate'] as double;
 
                         return Card(
@@ -208,7 +208,7 @@ class _AdminPayrollOverviewScreenState
                                   color: Colors.white),
                             ),
                             subtitle: Text(
-                              'Total Hours: ${hours.toStringAsFixed(1)} h',
+                              'Unpaid Hours: ${unpaidHours.toStringAsFixed(1)} h',
                               style: const TextStyle(color: Colors.white70),
                             ),
                             trailing: Column(
@@ -216,7 +216,7 @@ class _AdminPayrollOverviewScreenState
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text(
-                                  '\$${pay.toStringAsFixed(2)}',
+                                  '\$${projectedPayout.toStringAsFixed(2)}',
                                   style: const TextStyle(
                                       fontSize: 17,
                                       fontWeight: FontWeight.bold,

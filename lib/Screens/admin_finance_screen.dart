@@ -1,9 +1,8 @@
 // lib/screens/admin/admin_finance_screen.dart
-// FIXED: All warnings resolved (FirebaseFirestore import added, unused method removed)
-// NEW UNIFIED FINANCE HUB - Step 5
-// - Summary cards using new data path
-// - Three clean sections: Bookings | Reimbursements | Payroll
-// - Full actions: approve/deny/pay reimbursements
+// UPDATED: New dynamic payroll system
+// - Payroll tab now shows employee name (was just "Paid")
+// - Uses new WagePayoutModel + employee lookup
+// - All other tabs (Bookings / Reimbursements) unchanged
 // - Premium Polar Glow dark theme preserved
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -115,6 +114,24 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
     await _firestore.markReimbursementPaid(
         reimbursementId: id, adminId: adminId);
     _loadAllFinanceData();
+  }
+
+  // Helper to get employee name for payout display
+  Future<String> _getEmployeeName(String employeeId) async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(employeeId)
+          .get();
+      if (doc.exists) {
+        final data = doc.data()!;
+        return data['displayName'] ??
+            data['fullName'] ??
+            data['email']?.split('@')[0] ??
+            'Unknown';
+      }
+    } catch (_) {}
+    return 'Unknown Employee';
   }
 
   @override
@@ -284,16 +301,24 @@ class _AdminFinanceScreenState extends State<AdminFinanceScreen> {
       itemCount: _payouts.length,
       itemBuilder: (context, i) {
         final p = _payouts[i];
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          color: Colors.grey[850],
-          child: ListTile(
-            title: Text('Paid ${DateFormat('MMM d').format(p.paidAt)}'),
-            subtitle: Text('${p.totalHours.toStringAsFixed(1)} hrs'),
-            trailing: Text('\$${p.grossPay.toStringAsFixed(2)}',
-                style: const TextStyle(
-                    fontWeight: FontWeight.bold, color: Colors.green)),
-          ),
+        return FutureBuilder<String>(
+          future: _getEmployeeName(p.employeeId),
+          builder: (context, nameSnapshot) {
+            final employeeName = nameSnapshot.data ?? 'Loading...';
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              color: Colors.grey[850],
+              child: ListTile(
+                title: Text('Paid to $employeeName'),
+                subtitle: Text(
+                    '${DateFormat('MMM d, yyyy').format(p.paidAt)} • ${p.totalHours.toStringAsFixed(1)} hrs'),
+                trailing: Text('\$${p.grossPay.toStringAsFixed(2)}',
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, color: Colors.green)),
+              ),
+            );
+          },
         );
       },
     );

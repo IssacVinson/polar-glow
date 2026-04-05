@@ -34,7 +34,7 @@ dependencies:
   http: ^1.2.2
 
   # Address autocomplete
-  google_places_flutter: ^2.1.1
+  google_places_flutter: ^2.0.1
 
   # Premium fonts
   google_fonts: ^8.0.2

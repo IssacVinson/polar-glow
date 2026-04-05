@@ -1,12 +1,14 @@
 // lib/screens/employee/employee_hours_pay_screen.dart
-// FIXED: All unused imports removed + fully synced with new finance path
-// NEW: Fully responsive layout (no more overflow on any phone size)
+// UPDATED: New dynamic payroll system
+// - Unpaid Hours = hours since last payout (dynamic, no fixed period)
+// - YTD Hours + YTD Pay readouts
+// - Projected Payout clearly shown
+// - Employee view-only (no rate editing)
+// - Premium dark theme preserved
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/models/reimbursement_model.dart';
-import '../../core/models/wage_payout_model.dart';
 import '../../core/services/firestore_service.dart';
 
 class EmployeeHoursPayScreen extends StatefulWidget {
@@ -21,14 +23,12 @@ class EmployeeHoursPayScreen extends StatefulWidget {
 class _EmployeeHoursPayScreenState extends State<EmployeeHoursPayScreen> {
   final FirestoreService _firestore = FirestoreService();
 
-  double _totalHours = 0.0;
+  // New dynamic payroll fields
+  double _unpaidHours = 0.0;
+  double _ytdHours = 0.0;
+  double _ytdPay = 0.0;
   double _hourlyRate = 0.0;
-  double _totalPay = 0.0;
-
-  List<ReimbursementModel> _reimbursements = [];
-  double _totalApprovedReimbursements = 0.0;
-
-  List<WagePayoutModel> _payoutHistory = [];
+  double _projectedPayout = 0.0;
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -47,27 +47,16 @@ class _EmployeeHoursPayScreenState extends State<EmployeeHoursPayScreen> {
     try {
       final payData = await _firestore.calculateEmployeePay(
         widget.employeeId,
-        DateTime.now().subtract(const Duration(days: 14)),
         DateTime.now(),
       );
 
-      final reimbList =
-          await _firestore.getEmployeeReimbursements(widget.employeeId);
-      final payoutList =
-          await _firestore.getEmployeePayoutHistory(widget.employeeId);
-
-      final approvedReimbTotal = reimbList
-          .where((r) => r.isApproved || r.isPaid)
-          .fold<double>(0.0, (sum, r) => sum + r.amount);
-
       if (mounted) {
         setState(() {
-          _totalHours = payData['totalHours'] ?? 0.0;
+          _unpaidHours = payData['unpaidHours'] ?? 0.0;
+          _ytdHours = payData['ytdHours'] ?? 0.0;
+          _ytdPay = payData['ytdPay'] ?? 0.0;
           _hourlyRate = payData['hourlyRate'] ?? 0.0;
-          _totalPay = payData['grossPay'] ?? 0.0;
-          _reimbursements = reimbList;
-          _totalApprovedReimbursements = approvedReimbTotal;
-          _payoutHistory = payoutList;
+          _projectedPayout = payData['projectedPayout'] ?? 0.0;
           _isLoading = false;
         });
       }
@@ -91,8 +80,8 @@ class _EmployeeHoursPayScreenState extends State<EmployeeHoursPayScreen> {
   Widget build(BuildContext context) {
     final screenWidth = MediaQuery.of(context).size.width;
     final isSmallScreen = screenWidth < 380;
-
-    final grandTotal = _totalPay + _totalApprovedReimbursements;
+    final grandTotal =
+        _projectedPayout; // employees see only their unpaid payout
 
     return Scaffold(
       backgroundColor: Colors.grey[900],
@@ -126,7 +115,7 @@ class _EmployeeHoursPayScreenState extends State<EmployeeHoursPayScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Premium Totals Card - now fully responsive
+                      // Summary Card
                       Card(
                         elevation: 16,
                         shadowColor: _accentColor.withOpacity(0.4),
@@ -138,11 +127,11 @@ class _EmployeeHoursPayScreenState extends State<EmployeeHoursPayScreen> {
                           padding: EdgeInsets.all(isSmallScreen ? 20 : 32),
                           child: Column(
                             children: [
-                              // Total Hours Row
+                              // Unpaid Hours
                               Row(
                                 children: [
                                   const Text(
-                                    'Total Hours (14 days)',
+                                    'Unpaid Hours (since last payout)',
                                     style: TextStyle(
                                         fontSize: 17, color: Colors.white70),
                                   ),
@@ -151,7 +140,7 @@ class _EmployeeHoursPayScreenState extends State<EmployeeHoursPayScreen> {
                                     child: FittedBox(
                                       fit: BoxFit.scaleDown,
                                       child: Text(
-                                        _formatDuration(_totalHours),
+                                        _formatDuration(_unpaidHours),
                                         style: const TextStyle(
                                           fontSize: 28,
                                           fontWeight: FontWeight.bold,
@@ -162,94 +151,71 @@ class _EmployeeHoursPayScreenState extends State<EmployeeHoursPayScreen> {
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 8),
+                              const SizedBox(height: 12),
 
-                              // Rate + Pay Row
+                              // Hourly Rate (view only for employee)
                               Row(
                                 children: [
+                                  const Text(
+                                    'Hourly Rate',
+                                    style: TextStyle(
+                                        fontSize: 17, color: Colors.white54),
+                                  ),
+                                  const Spacer(),
                                   Text(
                                     '\$${_hourlyRate.toStringAsFixed(2)} / hr',
                                     style: const TextStyle(
                                       fontSize: 17,
-                                      color: Colors.white54,
-                                    ),
-                                  ),
-                                  const Spacer(),
-                                  Flexible(
-                                    child: FittedBox(
-                                      fit: BoxFit.scaleDown,
-                                      child: Text(
-                                        '\$${_totalPay.toStringAsFixed(2)}',
-                                        style: TextStyle(
-                                          fontSize: isSmallScreen ? 22 : 24,
-                                          fontWeight: FontWeight.bold,
-                                          color: _accentColor,
-                                        ),
-                                      ),
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white70,
                                     ),
                                   ),
                                 ],
+                              ),
+                              const SizedBox(height: 8),
+
+                              // Projected Payout
+                              Text(
+                                'Projected Payout: \$${_projectedPayout.toStringAsFixed(2)}',
+                                style: TextStyle(
+                                  fontSize: isSmallScreen ? 22 : 24,
+                                  fontWeight: FontWeight.bold,
+                                  color: _accentColor,
+                                ),
                               ),
 
                               const Divider(height: 32, color: Colors.white24),
 
-                              // Approved Reimbursements
+                              // YTD
                               Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
-                                  const Text(
-                                    'Approved Reimbursements',
-                                    style: TextStyle(
-                                        fontSize: 17, color: Colors.white70),
-                                  ),
+                                  const Text('YTD Hours',
+                                      style: TextStyle(color: Colors.white70)),
                                   Text(
-                                    '\$${_totalApprovedReimbursements.toStringAsFixed(2)}',
+                                    _formatDuration(_ytdHours),
                                     style: const TextStyle(
-                                      fontSize: 22,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFFFFA726),
-                                    ),
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ],
                               ),
-                              const SizedBox(height: 20),
-
-                              // Grand Total
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                    vertical: 16, horizontal: 24),
-                                decoration: BoxDecoration(
-                                  color: Colors.black12,
-                                  borderRadius: BorderRadius.circular(20),
-                                ),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    const Text(
-                                      'Grand Total',
-                                      style: TextStyle(
-                                        fontSize: 20,
+                              const SizedBox(height: 8),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Text('YTD Pay',
+                                      style: TextStyle(color: Colors.white70)),
+                                  Text(
+                                    '\$${_ytdPay.toStringAsFixed(2)}',
+                                    style: const TextStyle(
+                                        fontSize: 18,
                                         fontWeight: FontWeight.bold,
-                                        color: Colors.white,
-                                      ),
-                                    ),
-                                    Flexible(
-                                      child: FittedBox(
-                                        fit: BoxFit.scaleDown,
-                                        child: Text(
-                                          '\$${grandTotal.toStringAsFixed(2)}',
-                                          style: TextStyle(
-                                            fontSize: isSmallScreen ? 26 : 32,
-                                            fontWeight: FontWeight.bold,
-                                            color: _accentColor,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                                        color: Colors.green),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
@@ -258,167 +224,23 @@ class _EmployeeHoursPayScreenState extends State<EmployeeHoursPayScreen> {
 
                       const SizedBox(height: 40),
 
-                      // Recent Payouts
-                      if (_payoutHistory.isNotEmpty) ...[
-                        Text(
-                          'Recent Payouts',
-                          style:
-                              Theme.of(context).textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                        ),
-                        const SizedBox(height: 12),
-                        ..._payoutHistory.map((payout) => Card(
-                              margin: const EdgeInsets.only(bottom: 12),
-                              color: Colors.grey[850],
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(20)),
-                              child: ListTile(
-                                leading: const Icon(Icons.payment,
-                                    color: Color(0xFF4CAF50)),
-                                title: Text(
-                                    'Paid ${DateFormat('MMM d').format(payout.paidAt)}'),
-                                subtitle: Text(
-                                    '${payout.totalHours.toStringAsFixed(1)} hrs × \$${_hourlyRate.toStringAsFixed(2)}'),
-                                trailing: Text(
-                                  '\$${payout.grossPay.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    color: Color(0xFF4CAF50),
-                                  ),
-                                ),
-                              ),
-                            )),
-                        const SizedBox(height: 40),
-                      ],
-
-                      // Clock Events
+                      // Clock Events note
                       Text(
                         'Clock Events (last 14 days)',
                         style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
+                            fontWeight: FontWeight.bold, color: Colors.white),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
                       const Center(
                         child: Text(
-                          'Clock events are now calculated automatically.\n'
+                          'Clock events are automatically calculated.\n'
                           'Contact admin for detailed log if needed.',
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.white54),
                         ),
                       ),
 
-                      const SizedBox(height: 40),
-
-                      // Reimbursements
-                      Text(
-                        'Reimbursements',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
-                            ),
-                      ),
-                      const SizedBox(height: 16),
-
-                      _reimbursements.isEmpty
-                          ? const Center(
-                              child: Padding(
-                                padding: EdgeInsets.all(32),
-                                child: Text(
-                                  'No reimbursement requests yet',
-                                  style: TextStyle(color: Colors.white54),
-                                ),
-                              ),
-                            )
-                          : ListView.builder(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              itemCount: _reimbursements.length,
-                              itemBuilder: (context, index) {
-                                final claim = _reimbursements[index];
-                                final isApproved =
-                                    claim.isApproved || claim.isPaid;
-
-                                return Card(
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  color: Colors.grey[850],
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20)),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(20),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            Text(
-                                              DateFormat('MMM d, yyyy')
-                                                  .format(claim.dateSubmitted),
-                                              style: const TextStyle(
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.white),
-                                            ),
-                                            Text(
-                                              '\$${claim.amount.toStringAsFixed(2)}',
-                                              style: TextStyle(
-                                                fontSize: 20,
-                                                fontWeight: FontWeight.bold,
-                                                color: isApproved
-                                                    ? Colors.green
-                                                    : Colors.orange,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                        const SizedBox(height: 8),
-                                        Text(claim.title,
-                                            style: const TextStyle(
-                                                color: Colors.white70)),
-                                        const SizedBox(height: 12),
-                                        Chip(
-                                          label: Text(
-                                            claim.isPaid
-                                                ? 'Paid'
-                                                : claim.isApproved
-                                                    ? 'Approved'
-                                                    : claim.isDenied
-                                                        ? 'Denied'
-                                                        : 'Pending',
-                                          ),
-                                          backgroundColor: claim.isPaid
-                                              ? Colors.blue.withOpacity(0.2)
-                                              : claim.isApproved
-                                                  ? Colors.green
-                                                      .withOpacity(0.2)
-                                                  : claim.isDenied
-                                                      ? Colors.red
-                                                          .withOpacity(0.2)
-                                                      : Colors.orange
-                                                          .withOpacity(0.2),
-                                          labelStyle: TextStyle(
-                                            color: claim.isPaid
-                                                ? Colors.blue
-                                                : claim.isApproved
-                                                    ? Colors.green
-                                                    : claim.isDenied
-                                                        ? Colors.red
-                                                        : Colors.orange,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
+                      const SizedBox(height: 80),
                     ],
                   ),
                 ),

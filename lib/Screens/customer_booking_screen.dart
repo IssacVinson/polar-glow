@@ -48,11 +48,10 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   double get _totalPrice =>
       widget.selectedServices.fold<double>(
         0.0,
-        (sum, s) => sum + (s['price'] as num).toDouble(),
+        (acc, s) => acc + (s['price'] as num).toDouble(),
       ) *
       _numCars;
 
-  // Polar Glow brand accent (icy cyan)
   Color get _accentColor => const Color(0xFF00E5FF);
 
   @override
@@ -65,7 +64,9 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   }
 
   void _updateCarControllers(int count) {
-    for (var c in _vehicleControllers) c.dispose();
+    for (var c in _vehicleControllers) {
+      c.dispose();
+    }
     _vehicleControllers = List.generate(count, (_) => TextEditingController());
     _carTimes = List.generate(count, (_) => null);
     _selectedFullSlots = List.generate(count, (_) => null);
@@ -75,7 +76,9 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   void dispose() {
     _addressController.dispose();
     _notesController.dispose();
-    for (var c in _vehicleControllers) c.dispose();
+    for (var c in _vehicleControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -185,7 +188,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
     _loadSlotsForDay(selectedDay);
   }
 
-  /// NEW: Creates booking with the unified paymentMethod (stripe or cash)
   Future<DocumentReference?> _createBooking(String paymentMethod) async {
     if (!_formKey.currentState!.validate()) return null;
 
@@ -237,9 +239,8 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
       address: _addressController.text.trim(),
       notes: _notesController.text.trim(),
       status: 'pending',
-      // === NEW UNIFIED FINANCE FIELDS ===
-      paymentMethod: paymentMethod, // 'stripe' or 'cash'
-      paymentStatus: 'unpaid', // always starts unpaid (Stripe confirms later)
+      paymentMethod: paymentMethod,
+      paymentStatus: 'unpaid',
     );
 
     try {
@@ -294,7 +295,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
       await Stripe.instance.presentPaymentSheet();
 
-      // NEW: Use the unified confirmation method
       await _firestore.confirmStripePayment(
         bookingId: docRef.id,
         paymentIntentId: paymentData['paymentIntentId'],
@@ -368,10 +368,9 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Selected Services Card
                     Card(
                       elevation: 8,
-                      shadowColor: _accentColor.withOpacity(0.3),
+                      shadowColor: _accentColor.withValues(alpha: 0.3),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -448,10 +447,36 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
                     const SizedBox(height: 28),
 
-                    // Number of Cars Card
+                    // Address field moved to the very top (right after services)
+                    // This prevents focus jumping to the car details fields
+                    GooglePlaceAutoCompleteTextField(
+                      googleAPIKey: "AIzaSyDxrc2tPDR-SpPhC5rBZynOPxnbBvN2oGc",
+                      textEditingController: _addressController,
+                      inputDecoration: InputDecoration(
+                        labelText: 'Address',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        hintText: 'Start typing your address...',
+                        hintStyle: const TextStyle(color: Colors.white38),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        filled: true,
+                        fillColor: Colors.black12,
+                        prefixIcon:
+                            Icon(Icons.location_on, color: _accentColor),
+                      ),
+                      debounceTime: 800,
+                      itemClick: (prediction) {
+                        _addressController.text = prediction.description ?? '';
+                      },
+                      isLatLngRequired: false,
+                    ),
+
+                    const SizedBox(height: 28),
+
                     Card(
                       elevation: 8,
-                      shadowColor: _accentColor.withOpacity(0.3),
+                      shadowColor: _accentColor.withValues(alpha: 0.3),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -516,12 +541,12 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
                     const SizedBox(height: 28),
 
-                    // Vehicle Details Cards
                     ...List.generate(_numCars, (index) {
                       return Card(
+                        key: ValueKey('car-$index'),
                         margin: const EdgeInsets.only(bottom: 20),
                         elevation: 8,
-                        shadowColor: _accentColor.withOpacity(0.3),
+                        shadowColor: _accentColor.withValues(alpha: 0.3),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(20),
                         ),
@@ -541,6 +566,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                               const SizedBox(height: 16),
                               TextFormField(
                                 controller: _vehicleControllers[index],
+                                autofocus: false,
                                 style: const TextStyle(color: Colors.white),
                                 decoration: InputDecoration(
                                   labelText: 'Color, Make, Model',
@@ -566,33 +592,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
                     const SizedBox(height: 28),
 
-                    // Address
-                    GooglePlaceAutoCompleteTextField(
-                      googleAPIKey: "AIzaSyDxrc2tPDR-SpPhC5rBZynOPxnbBvN2oGc",
-                      textEditingController: _addressController,
-                      inputDecoration: InputDecoration(
-                        labelText: 'Address',
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        hintText: 'Start typing your address...',
-                        hintStyle: const TextStyle(color: Colors.white38),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        filled: true,
-                        fillColor: Colors.black12,
-                        prefixIcon:
-                            Icon(Icons.location_on, color: _accentColor),
-                      ),
-                      debounceTime: 800,
-                      itemClick: (prediction) {
-                        _addressController.text = prediction.description ?? '';
-                      },
-                      isLatLngRequired: false,
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Notes
                     TextFormField(
                       controller: _notesController,
                       style: const TextStyle(color: Colors.white),
@@ -610,10 +609,9 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
                     const SizedBox(height: 32),
 
-                    // Date Selection
                     Card(
                       elevation: 8,
-                      shadowColor: _accentColor.withOpacity(0.3),
+                      shadowColor: _accentColor.withValues(alpha: 0.3),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -654,10 +652,9 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
                     const SizedBox(height: 28),
 
-                    // Available Times
                     Card(
                       elevation: 8,
-                      shadowColor: _accentColor.withOpacity(0.3),
+                      shadowColor: _accentColor.withValues(alpha: 0.3),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -826,8 +823,8 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                                             padding: const EdgeInsets.symmetric(
                                                 horizontal: 14, vertical: 8),
                                             decoration: BoxDecoration(
-                                              color: _accentColor
-                                                  .withOpacity(0.15),
+                                              color: _accentColor.withValues(
+                                                  alpha: 0.15),
                                               borderRadius:
                                                   BorderRadius.circular(30),
                                             ),
@@ -850,7 +847,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 140), // space for bottom bar
+                    const SizedBox(height: 140),
                   ],
                 ),
               ),
@@ -864,7 +861,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Pay Now Button
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
@@ -890,7 +886,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-              // Pay Cash Button
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(

@@ -1,6 +1,7 @@
 // lib/Screens/admin_dashboard.dart
 // FIXED: Text overflow on cards (especially "Promote Accounts" → now wraps cleanly)
 // Premium dark theme with glowing cards + fully responsive
+// REMOVED: Track Employees button + AdminEmployeeListScreen (redundant — all info now elsewhere)
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -9,7 +10,6 @@ import '../Providers/auth_provider.dart';
 
 import 'admin_manage_bookings_screen.dart';
 import 'admin_promotion_screen.dart';
-import 'admin_employee_list_screen.dart';
 import 'admin_schedule_calendar_screen.dart';
 import 'admin_services_screen.dart';
 import 'admin_payroll_overview_screen.dart';
@@ -125,18 +125,6 @@ class AdminDashboard extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                                 builder: (_) => const AdminPromotionScreen())),
-                      ),
-                      _buildGlowCard(
-                        context,
-                        Icons.people_alt_rounded,
-                        'Track Employees',
-                        'View & search staff',
-                        Colors.indigo,
-                        () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) =>
-                                    const AdminEmployeeListScreen())),
                       ),
                       _buildGlowCard(
                         context,
