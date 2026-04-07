@@ -8,7 +8,6 @@ import '../Providers/auth_provider.dart';
 import 'employee_clock_screen.dart';
 import 'employee_calendar_view.dart';
 import 'employee_hours_pay_screen.dart';
-import 'employee_finances_screen.dart';
 import 'profile_screen.dart';
 import 'employee_reimbursement_screen.dart';
 import 'reviews_screen.dart';
@@ -140,13 +139,13 @@ class EmployeeDashboard extends StatelessWidget {
                                 builder: (_) => EmployeeHoursPayScreen(
                                     employeeId: currentUserId)));
                       }),
-                      _buildPremiumCard(context, Icons.account_balance_wallet,
-                          'My Finances', const Color(0xFF00B0FF), () {
+                      _buildPremiumCard(context, Icons.directions_car_outlined,
+                          'My Bookings', const Color(0xFF00E5FF), () {
                         Navigator.push(
                             context,
                             MaterialPageRoute(
-                                builder: (_) => EmployeeFinancesScreen(
-                                    employeeId: currentUserId)));
+                                builder: (_) =>
+                                    const EmployeeBookingsScreen()));
                       }),
                       _buildPremiumCard(context, Icons.rate_review_rounded,
                           'My Reviews', const Color(0xFFFFD700), () {
@@ -161,15 +160,6 @@ class EmployeeDashboard extends StatelessWidget {
                             context,
                             MaterialPageRoute(
                                 builder: (_) => const ProfileScreen()));
-                      }),
-                      // === NEW CARD ===
-                      _buildPremiumCard(context, Icons.directions_car_outlined,
-                          'My Bookings', const Color(0xFF00E5FF), () {
-                        Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) =>
-                                    const EmployeeBookingsScreen()));
                       }),
                     ],
                   ),

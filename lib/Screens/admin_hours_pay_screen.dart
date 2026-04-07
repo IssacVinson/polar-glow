@@ -1,9 +1,3 @@
-// lib/screens/admin/admin_hours_pay_screen.dart
-// UPDATED: YTD info moved to the very top of the summary card
-// - Grand Total always includes approved (unpaid) reimbursements — even if $0
-// - Clear section labels and layout for better readability
-// - Full-screen scrollable (no inner scrolling)
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -35,7 +29,6 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
   double _currentApprovedReimbursements = 0.0;
 
   bool _isLoading = true;
-  String? _errorMessage;
 
   Color get _accentColor => const Color(0xFF00E5FF);
 
@@ -56,10 +49,9 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
       final reimbList =
           await _firestore.getEmployeeReimbursements(widget.employeeId);
 
-      // Only currently APPROVED reimbursements count toward this payout
       final approvedReimbTotal = reimbList
           .where((r) => r.isApproved)
-          .fold<double>(0.0, (sum, r) => sum + r.amount);
+          .fold<double>(0.0, (total, r) => total + r.amount);
 
       if (mounted) {
         setState(() {
@@ -75,10 +67,7 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
       }
     } catch (e) {
       if (mounted) {
-        setState(() {
-          _isLoading = false;
-          _errorMessage = 'Failed to load data: $e';
-        });
+        setState(() => _isLoading = false);
       }
     }
   }
@@ -86,8 +75,10 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
   Future<void> _markEmployeePaid() async {
     final grandTotal = _projectedPayout + _currentApprovedReimbursements;
     if (grandTotal <= 0) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Nothing to pay yet')));
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(const SnackBar(content: Text('Nothing to pay yet')));
+      }
       return;
     }
 
@@ -177,12 +168,16 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
         _hourlyRate = newRate;
         _projectedPayout = _unpaidHours * newRate;
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Rate updated to \$$newRate/hr')));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Rate updated to \$$newRate/hr')));
+      }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Failed to save rate: $e'),
-          backgroundColor: Colors.red));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Failed to save rate: $e'),
+            backgroundColor: Colors.red));
+      }
     }
   }
 
@@ -211,7 +206,6 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Summary Card
             Card(
               elevation: 16,
               shadowColor: _accentColor.withOpacity(0.4),
@@ -223,7 +217,6 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // === YTD SECTION (moved to top as requested) ===
                     Text('This Year (YTD)',
                         style: Theme.of(context)
                             .textTheme
@@ -257,10 +250,7 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                                 color: Colors.green)),
                       ],
                     ),
-
                     const Divider(height: 40, color: Colors.white24),
-
-                    // === CURRENT PAYOUT SECTION ===
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -275,7 +265,6 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -292,17 +281,13 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-
                     Text(
                         'Projected Payout: \$${_projectedPayout.toStringAsFixed(2)}',
                         style: const TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF00E5FF))),
-
                     const SizedBox(height: 16),
-
-                    // Approved Reimbursements (always shown, even if $0)
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -317,10 +302,7 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                                 color: Colors.orange)),
                       ],
                     ),
-
                     const Divider(height: 32, color: Colors.white24),
-
-                    // Grand Total
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -334,9 +316,7 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                                 color: Color(0xFF00E5FF))),
                       ],
                     ),
-
                     const SizedBox(height: 24),
-
                     SizedBox(
                       width: double.infinity,
                       height: 56,
@@ -353,10 +333,7 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 40),
-
-            // Clock Events
             Text('Clock Events (last 14 days)',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold, color: Colors.white)),
@@ -365,15 +342,11 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
               'Clock events are automatically calculated.\nDetailed log available in employee view.',
               style: TextStyle(color: Colors.white54),
             ),
-
             const SizedBox(height: 40),
-
-            // Reimbursements
             Text('Reimbursements',
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold, color: Colors.white)),
             const SizedBox(height: 12),
-
             _reimbursements.isEmpty
                 ? const Center(
                     child: Text('No reimbursements yet',
@@ -472,7 +445,6 @@ class _AdminHoursPayScreenState extends State<AdminHoursPayScreen> {
                       );
                     },
                   ),
-
             const SizedBox(height: 80),
           ],
         ),

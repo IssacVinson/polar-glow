@@ -1,8 +1,12 @@
+// lib/screens/employee_bookings_screen.dart
+// FIXED: Removed lint errors (unnecessary string interpolation + dead null-aware expressions)
+// Now uses direct Firestore update for 'completed' (matches admin + customer screens)
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../../core/models/booking_model.dart';
-import '../../core/services/firestore_service.dart';
 import '../../Providers/auth_provider.dart';
 import '../core/utils/alaska_date_utils.dart';
 
@@ -14,7 +18,6 @@ class EmployeeBookingsScreen extends StatefulWidget {
 }
 
 class _EmployeeBookingsScreenState extends State<EmployeeBookingsScreen> {
-  final FirestoreService _firestore = FirestoreService();
   List<BookingModel> _bookings = [];
   bool _loading = true;
 
@@ -45,30 +48,54 @@ class _EmployeeBookingsScreenState extends State<EmployeeBookingsScreen> {
   }
 
   Future<void> _markCompleted(String bookingId) async {
-    final uid = context.read<AuthProvider>().user!.uid;
-    await _firestore.markBookingCompleted(
-      bookingId: bookingId,
-      employeeId: uid,
-    );
-    _loadBookings(); // refresh
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Job marked as completed')),
-      );
+    try {
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(bookingId)
+          .update({
+        'completed': true,
+        'completedAt': FieldValue.serverTimestamp(),
+      });
+
+      _loadBookings(); // refresh
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Job marked as completed')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 
   Future<void> _markCashPaid(String bookingId) async {
-    final uid = context.read<AuthProvider>().user!.uid;
-    await _firestore.markCashBookingPaid(
-      bookingId: bookingId,
-      employeeId: uid,
-    );
-    _loadBookings();
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('✅ Cash payment marked as paid')),
-      );
+    try {
+      await FirebaseFirestore.instance
+          .collection('bookings')
+          .doc(bookingId)
+          .update({
+        'paid': true,
+        'paidAt': FieldValue.serverTimestamp(),
+      });
+
+      _loadBookings();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('✅ Cash payment marked as paid')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error marking paid: $e')),
+        );
+      }
     }
   }
 
@@ -147,7 +174,7 @@ class _EmployeeBookingsScreenState extends State<EmployeeBookingsScreen> {
                             ),
                             const SizedBox(height: 8),
                             Text(
-                              '${booking.cars.map((c) => c['vehicle']).join(', ')}',
+                              booking.cars.map((c) => c['vehicle']).join(', '),
                               style: const TextStyle(color: Colors.white70),
                             ),
                             Text(

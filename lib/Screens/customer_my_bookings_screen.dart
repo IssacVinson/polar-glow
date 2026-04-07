@@ -1,13 +1,6 @@
 // lib/screens/customer/customer_my_bookings_screen.dart
-// FIXED: Removed 'const' from Scaffold (Colors.grey[900] is not a compile-time constant)
-// FULL PREMIUM UPGRADE: Polar Glow dark theme + feng shui layout
-// - High-contrast dark background (grey[900])
-// - Icy cyan glow accents on cards
-// - Elegant elevated cards with generous spacing
-// - Modern typography and premium visual hierarchy
-// - Dark-themed modal bottom sheet with clean edit fields
-// - Gold "Write a Review" button (matching dashboard/feedback)
-// - All original logic, streaming, employee lookup, and review navigation preserved 100%
+// FIXED: Booking Details modal now uses AlaskaDateUtils.toAlaskaDayKey()
+//        → Date now matches the list view and feedback picker perfectly
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,15 +21,13 @@ class CustomerMyBookingsScreen extends StatefulWidget {
 class _CustomerMyBookingsScreenState extends State<CustomerMyBookingsScreen> {
   final User? _currentUser = FirebaseAuth.instance.currentUser;
 
-  // Polar Glow brand colors
-  Color get _accentColor => const Color(0xFF00E5FF); // icy cyan
-  Color get _goldColor => const Color(0xFFFFD700); // gold
+  Color get _accentColor => const Color(0xFF00E5FF);
+  Color get _goldColor => const Color(0xFFFFD700);
 
   @override
   Widget build(BuildContext context) {
     if (_currentUser == null) {
       return Scaffold(
-        // ← const removed to fix "Invalid constant value"
         backgroundColor: Colors.grey[900],
         body: const Center(
           child: Text('Please sign in',
@@ -215,7 +206,7 @@ class _CustomerMyBookingsScreenState extends State<CustomerMyBookingsScreen> {
     );
   }
 
-  // ── Original helper methods (logic unchanged) ──
+  // ── Updated helper methods ──
   Future<String> _getEmployeeName(String? employeeId) async {
     if (employeeId == null || employeeId.isEmpty) return 'Unassigned';
     try {
@@ -269,6 +260,10 @@ class _CustomerMyBookingsScreenState extends State<CustomerMyBookingsScreen> {
 
     if (!mounted) return;
 
+    // FIXED: Convert to Alaska time so date matches the list view
+    final utcDate = (data['date'] as Timestamp).toDate();
+    final alaskaDate = AlaskaDateUtils.toAlaskaDayKey(utcDate);
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -307,10 +302,8 @@ class _CustomerMyBookingsScreenState extends State<CustomerMyBookingsScreen> {
                   ),
             ),
             const SizedBox(height: 24),
-            _detailRow(
-                'Date',
-                DateFormat('EEEE, MMMM d, yyyy')
-                    .format((data['date'] as Timestamp).toDate())),
+            _detailRow('Date',
+                DateFormat('EEEE, MMMM d, yyyy').format(alaskaDate)), // ← FIXED
             _detailRow(
                 'Time', data['cars']?[0]?['time'] ?? data['timeSlot'] ?? 'N/A'),
             _detailRow('Assigned to', employeeName),
