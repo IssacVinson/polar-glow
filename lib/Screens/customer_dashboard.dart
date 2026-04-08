@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'customer_services_screen.dart';
 import 'customer_my_bookings_screen.dart';
 import 'customer_feedback_screen.dart';
+import 'profile_screen.dart'; // ← New import
 
 class CustomerDashboard extends StatelessWidget {
   const CustomerDashboard({super.key});
@@ -13,6 +14,7 @@ class CustomerDashboard extends StatelessWidget {
   Color get _accentColor => const Color(0xFF00E5FF); // icy cyan
   Color get _bookingsColor => const Color(0xFF06B67F); // vibrant teal
   Color get _feedbackColor => const Color(0xFFFFD700); // gold
+  Color get _profileColor => const Color(0xFF9C27B0); // purple for profile
 
   @override
   Widget build(BuildContext context) {
@@ -201,11 +203,43 @@ class CustomerDashboard extends StatelessWidget {
                 ),
               ),
 
+              const SizedBox(height: 18),
+
+              // NEW: My Profile - Purple
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  icon: const Icon(Icons.person, size: 26),
+                  label: const Text(
+                    'My Profile',
+                    style: TextStyle(fontSize: 19, fontWeight: FontWeight.bold),
+                  ),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: _profileColor,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    elevation: 12,
+                    shadowColor: _profileColor.withOpacity(0.6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const ProfileScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ),
+
               const SizedBox(height: 64),
 
               // Footer tagline
               Text(
-                'Serving Alaska Since 2025 • Expert Attention to Detail • Satisfaction Guaranteed',
+                'Serving Alaska Since 2024 • Expert Attention to Detail • Satisfaction Guaranteed',
                 style: textTheme.bodySmall?.copyWith(
                   color: Colors.white54,
                   fontStyle: FontStyle.italic,

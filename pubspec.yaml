@@ -1,8 +1,9 @@
 name: polar_glow
-description: Polar Glow Car Detailing mobile app
+description: Polar Glow Car Detailing – Book professional on-location vehicle detailing services in Anchorage, Eagle River, Wasilla, Palmer, and JBER, Alaska. Mobile app with instant booking, secure Stripe payments, and real-time scheduling.
+
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.1+2
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
