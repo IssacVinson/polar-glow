@@ -1,9 +1,3 @@
-// lib/screens/employee_calendar_view.dart
-// PREMIUM FINAL: Much more vibrant and premium Edit Time Slots modal
-// - Bright cyan "Save Changes" button with bold black text
-// - Clean high-contrast "Cancel" button
-// - Better spacing and readability
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';

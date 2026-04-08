@@ -1,14 +1,6 @@
-// lib/screens/login_screen.dart
-// FULL PREMIUM UPGRADE: Polar Glow dark theme + luxurious layout
-// - Icy cyan accents + glowing elements
-// - Premium dark background and elevated form
-// - Modern typography and generous spacing
-// - All original logic (email/username login, FirebaseAuth, Register navigation) preserved 100%
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {

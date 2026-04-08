@@ -1,6 +1,3 @@
-// lib/screens/admin/admin_hours_pay_screen.dart
-// COMPLETE & CLEAN - All linter errors fixed, receipt images work with receiptUrl
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';

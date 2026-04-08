@@ -1,13 +1,6 @@
-// lib/screens/employee/employee_hours_pay_screen.dart
-// FIXED: Overflow on "Unpaid Hours" row (long label + large duration)
-// - Used Expanded + FittedBox (same pattern as your original code)
-// - Clock events now display correctly
-// - Premium dark theme + responsive layout preserved
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-
 import '../../core/models/clock_event_model.dart';
 import '../../core/services/firestore_service.dart';
 import '../../Providers/auth_provider.dart' as app_auth;

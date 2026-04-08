@@ -1,10 +1,3 @@
-// lib/screens/employee_availability_screen.dart
-// FIXED: Removed 'const' from BoxDecoration (Colors.grey[900] is not a compile-time constant)
-// FULL PREMIUM UPGRADE: Polar Glow dark theme + luxurious layout
-// - Icy cyan glow accents + elevated glowing cards everywhere
-// - Modern premium typography, generous spacing, and visual hierarchy
-// - All original logic, overlap validation, preview, editing, Firestore writes, etc. preserved 100%
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

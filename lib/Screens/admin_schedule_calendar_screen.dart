@@ -1,8 +1,3 @@
-// lib/Screens/admin_schedule_calendar_screen.dart
-// FIXED: Now automatically loads details for the initially selected day (today/focused day)
-// No more "No bookings on this day" on first load when opening Overall Schedule
-// Green bubbles = available slots | Orange bubbles = bookings
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';

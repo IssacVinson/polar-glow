@@ -1,7 +1,3 @@
-// lib/screens/customer/customer_my_bookings_screen.dart
-// FIXED: Booking Details modal now uses AlaskaDateUtils.toAlaskaDayKey()
-//        → Date now matches the list view and feedback picker perfectly
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

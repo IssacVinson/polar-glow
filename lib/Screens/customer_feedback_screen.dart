@@ -1,7 +1,3 @@
-// lib/screens/customer/customer_feedback_screen.dart
-// FIXED: Booking picker now uses AlaskaDateUtils.toAlaskaDayKey()
-//        → dates now match My Bookings screen perfectly (no more off-by-1-day bug)
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

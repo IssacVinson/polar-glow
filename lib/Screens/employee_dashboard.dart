@@ -1,9 +1,5 @@
-// lib/screens/employee_dashboard.dart
-// UPDATED: Added "My Bookings" card for the new dedicated management screen
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-
 import '../Providers/auth_provider.dart';
 import 'employee_clock_screen.dart';
 import 'employee_calendar_view.dart';

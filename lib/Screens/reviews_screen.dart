@@ -1,8 +1,3 @@
-// lib/screens/reviews_screen.dart
-// FIXED: Completely removed all composite index requirements
-// Employees now use a simple .orderBy() only + client-side filtering
-// (No .where() at all for non-admins → no more index errors)
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';

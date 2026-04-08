@@ -1,8 +1,3 @@
-// lib/screens/customer_services_screen.dart
-// UPDATED: Major visual overhaul for Polar Glow brand - high contrast dark theme,
-// modern cards with elevation/glow, icy cyan accents, premium typography & spacing
-// FIXED: Removed unused colorScheme and textTheme variables (linter warning cleared)
-
 import 'package:flutter/material.dart';
 
 import '../core/models/service_model.dart';

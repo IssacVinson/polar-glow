@@ -1,12 +1,4 @@
-// lib/screens/employee_clock_screen.dart
-// FIXED: Clocked-in detection now works correctly with newest-first query
-// - Robust pairing logic (handles descending order from Firestore)
-// - Supports both 'in'/'out' and legacy 'clock_in'/'clock_out'
-// - Live timer, premium UI, and all original features preserved
-// NEW: Entire screen is now ONE single scrollable area (no inner ListView)
-
 import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';

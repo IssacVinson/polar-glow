@@ -1,8 +1,4 @@
-// lib/screens/employee/employee_reimbursement_screen.dart
-// FIXED: Bottom overflow when keyboard opens (now scrollable + proper padding)
-
 import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';

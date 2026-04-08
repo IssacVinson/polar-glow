@@ -1,8 +1,3 @@
-// lib/Screens/admin_manage_bookings_screen.dart
-// FIXED: Dynamic layout with Wrap for status badges (no more overflow)
-// Leading icon changed to dollar sign (Icons.attach_money)
-// Matches customer My Bookings visual style exactly
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';

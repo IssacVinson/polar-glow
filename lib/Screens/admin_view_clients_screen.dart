@@ -1,7 +1,3 @@
-// lib/Screens/admin_view_clients_screen.dart
-// UPGRADED: Premium dark theme with glowing cards + cyan accents
-// Fully consistent with EmployeeDashboard + all upgraded admin screens
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 

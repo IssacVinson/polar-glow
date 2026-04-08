@@ -1,16 +1,6 @@
-// lib/screens/admin/admin_payroll_overview_screen.dart
-// UPDATED: New dynamic payroll system
-// - Unpaid Hours = hours since last payout (dynamic, no fixed 14-day period)
-// - Shows Projected Payout + Hourly Rate
-// - Uses new calculateEmployeePay() that returns unpaidHours + projectedPayout
-// - Premium dark theme preserved
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-
 import '../../core/services/firestore_service.dart';
-import '../../Providers/auth_provider.dart' as app_auth;
 import 'admin_hours_pay_screen.dart';
 
 class AdminPayrollOverviewScreen extends StatefulWidget {

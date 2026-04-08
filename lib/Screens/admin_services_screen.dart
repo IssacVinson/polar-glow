@@ -1,7 +1,3 @@
-// lib/Screens/admin_services_screen.dart
-// UPGRADED: Premium dark theme with glowing cards + cyan accents
-// Fully consistent with EmployeeDashboard + all upgraded admin screens
-
 import 'package:flutter/material.dart';
 
 import '../core/models/service_model.dart';

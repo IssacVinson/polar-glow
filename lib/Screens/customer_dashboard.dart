@@ -1,12 +1,3 @@
-// lib/screens/customer/customer_dashboard.dart
-// UPDATED: Full Polar Glow premium dark theme overhaul
-// - High-contrast dark background
-// - Icy cyan brand accents + glows
-// - DISTINCT button colors as requested:
-//   • Book Appointment → Icy Cyan (#00E5FF)
-//   • View My Bookings → Vibrant Teal (#06B67F)
-//   • Give Feedback → Gold (#FFD700) with strong glow shadow
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';

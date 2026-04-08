@@ -1,10 +1,3 @@
-// lib/screens/register_screen.dart
-// FULL PREMIUM UPGRADE: Polar Glow dark theme + luxurious layout
-// - Icy cyan accents + glowing elevated form
-// - Modern dark TextFields with premium styling
-// - Clean header with logo and welcome text
-// - All original logic (PhoneFormatter, username availability, email validation, Firebase registration, usernames collection, auto-login) preserved 100%
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

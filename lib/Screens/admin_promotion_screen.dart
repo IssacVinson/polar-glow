@@ -1,7 +1,3 @@
-// lib/Screens/admin_promotion_screen.dart
-// FIXED: Brighter purple + text glow for "Make Admin" button (much higher contrast + premium neon glow)
-// Still matches Employee/Admin Dashboard vibe exactly (dark theme, cyan accents, glowing cards)
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 

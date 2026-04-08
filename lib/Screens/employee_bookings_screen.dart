@@ -1,7 +1,3 @@
-// lib/screens/employee_bookings_screen.dart
-// FIXED: Removed lint errors (unnecessary string interpolation + dead null-aware expressions)
-// Now uses direct Firestore update for 'completed' (matches admin + customer screens)
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';

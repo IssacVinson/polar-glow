@@ -1,10 +1,3 @@
-// lib/screens/profile_screen.dart
-// FULL PREMIUM UPGRADE: Polar Glow dark theme + luxurious layout
-// - Icy cyan accents + glowing elevated cards
-// - Modern dark TextFields with premium styling
-// - Clean separation of profile info and password change
-// - All original logic (PhoneFormatter, username availability, password re-auth, Firestore updates) preserved 100%
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

@@ -1,6 +1,3 @@
-// lib/screens/admin/admin_finance_screen.dart
-// FINAL VERSION - Full-height tab hitboxes (easy to tap), colored tabs, rich booking details
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
