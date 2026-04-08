@@ -2,6 +2,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/gestures.dart';
+import 'privacy_policy_screen.dart';
+import 'terms_of_service_screen.dart';
 
 /// Formats phone as (907) 518-4614 while typing
 class PhoneFormatter extends TextInputFormatter {
@@ -48,6 +51,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _isLoading = false;
   String? _errorMessage;
   String? _usernameError;
+  bool _agreedToTerms = false;
 
   // Proper email validation
   final _emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
@@ -71,6 +75,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (!_agreedToTerms) {
+      setState(() => _errorMessage =
+          'You must agree to the Terms of Service and Privacy Policy');
+      return;
+    }
 
     final username = _usernameController.text.trim().toLowerCase();
     final isAvailable = await _isUsernameAvailable(username);
@@ -101,6 +111,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
         'email': _emailController.text.trim(),
         'role': 'customer',
         'createdAt': FieldValue.serverTimestamp(),
+        'termsAccepted': true,
+        'termsAcceptedAt': FieldValue.serverTimestamp(),
       });
 
       await FirebaseFirestore.instance
@@ -280,7 +292,78 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     : null,
               ),
 
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+
+              // Terms + Privacy checkbox with two tappable links
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Checkbox(
+                    value: _agreedToTerms,
+                    onChanged: (value) {
+                      setState(() => _agreedToTerms = value ?? false);
+                    },
+                    activeColor: _accentColor,
+                    checkColor: Colors.black,
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      onTap: () {}, // prevents double-tap issues
+                      child: RichText(
+                        text: TextSpan(
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            height: 1.4,
+                          ),
+                          children: [
+                            const TextSpan(text: 'I agree to the '),
+                            TextSpan(
+                              text: 'Terms of Service',
+                              style: TextStyle(
+                                color: _accentColor,
+                                decoration: TextDecoration.underline,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const TermsOfServiceScreen(),
+                                    ),
+                                  );
+                                },
+                            ),
+                            const TextSpan(text: ' and '),
+                            TextSpan(
+                              text: 'Privacy Policy',
+                              style: TextStyle(
+                                color: _accentColor,
+                                decoration: TextDecoration.underline,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              recognizer: TapGestureRecognizer()
+                                ..onTap = () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) =>
+                                          const PrivacyPolicyScreen(),
+                                    ),
+                                  );
+                                },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
 
               if (_errorMessage != null)
                 Text(
