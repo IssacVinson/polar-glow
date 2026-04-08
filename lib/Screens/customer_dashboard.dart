@@ -5,7 +5,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'customer_services_screen.dart';
 import 'customer_my_bookings_screen.dart';
 import 'customer_feedback_screen.dart';
-import 'profile_screen.dart'; // ← New import
+import 'profile_screen.dart';
+import 'settings_screen.dart'; // ← New import
 
 class CustomerDashboard extends StatelessWidget {
   const CustomerDashboard({super.key});
@@ -35,6 +36,19 @@ class CustomerDashboard extends StatelessWidget {
         foregroundColor: Colors.white,
         elevation: 4,
         actions: [
+          // Settings icon
+          IconButton(
+            icon: const Icon(Icons.settings_rounded),
+            tooltip: 'Settings',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => const SettingsScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.logout_rounded),
             tooltip: 'Sign out',
@@ -205,7 +219,7 @@ class CustomerDashboard extends StatelessWidget {
 
               const SizedBox(height: 18),
 
-              // NEW: My Profile - Purple
+              // My Profile - Purple
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(
