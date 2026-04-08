@@ -1,5 +1,6 @@
 // lib/Screens/admin_schedule_calendar_screen.dart
-// UPDATED: Booking preview now shows BOTH Customer Name + Detailer Name at a glance
+// FIXED: Now automatically loads details for the initially selected day (today/focused day)
+// No more "No bookings on this day" on first load when opening Overall Schedule
 // Green bubbles = available slots | Orange bubbles = bookings
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -40,6 +41,7 @@ class _AdminScheduleCalendarScreenState
     super.initState();
     _selectedDay = _focusedDay;
     _loadAllCalendarData();
+    _loadDayDetails(_selectedDay!); // ← Auto-loads today on first open
   }
 
   Future<void> _loadAllCalendarData() async {
@@ -191,7 +193,6 @@ class _AdminScheduleCalendarScreenState
   }
 
   void _showBookingDetails(Map<String, dynamic> booking) async {
-    // (same rich detail sheet as before)
     final customerId = booking['customerId'] as String?;
     String customerName =
         booking['customerName'] ?? booking['customerEmail'] ?? 'Unknown';
