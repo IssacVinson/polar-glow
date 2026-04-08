@@ -1,3 +1,6 @@
+// lib/core/models/reimbursement_model.dart
+// UPDATED: Added receiptUrl support (used for receipt photos)
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/alaska_date_utils.dart';
 
@@ -13,6 +16,7 @@ class ReimbursementModel {
   final String? approvedBy; // admin UID who approved/denied
   final DateTime? paidAt;
   final String? paidBy; // admin UID who marked as paid
+  final String? receiptUrl; // ← NEW: URL to the uploaded receipt image
 
   ReimbursementModel({
     required this.id,
@@ -26,6 +30,7 @@ class ReimbursementModel {
     this.approvedBy,
     this.paidAt,
     this.paidBy,
+    this.receiptUrl, // ← NEW
   });
 
   factory ReimbursementModel.fromMap(Map<String, dynamic> map, String id) {
@@ -45,6 +50,7 @@ class ReimbursementModel {
       paidAt:
           map['paidAt'] != null ? (map['paidAt'] as Timestamp).toDate() : null,
       paidBy: map['paidBy'],
+      receiptUrl: map['receiptUrl'], // ← NEW
     );
   }
 
@@ -61,6 +67,7 @@ class ReimbursementModel {
       'approvedBy': approvedBy,
       'paidAt': paidAt != null ? Timestamp.fromDate(paidAt!) : null,
       'paidBy': paidBy,
+      'receiptUrl': receiptUrl, // ← NEW
     };
   }
 
