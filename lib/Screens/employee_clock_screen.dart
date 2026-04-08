@@ -3,6 +3,7 @@
 // - Robust pairing logic (handles descending order from Firestore)
 // - Supports both 'in'/'out' and legacy 'clock_in'/'clock_out'
 // - Live timer, premium UI, and all original features preserved
+// NEW: Entire screen is now ONE single scrollable area (no inner ListView)
 
 import 'dart:async';
 
@@ -282,202 +283,205 @@ class _EmployeeClockScreenState extends State<EmployeeClockScreen> {
       ),
       body: RefreshIndicator(
         onRefresh: _refreshClockData,
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                todayStr,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white70,
-                    ),
-                textAlign: TextAlign.center,
-              ),
-
-              const SizedBox(height: 40),
-
-              // Main Clock Status Card
-              Card(
-                elevation: 16,
-                shadowColor: _isClockedIn
-                    ? const Color(0xFF00E5FF).withOpacity(0.5)
-                    : Colors.red.withOpacity(0.4),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(32),
+        child: SingleChildScrollView(
+          // This makes the ENTIRE screen one unified scrollable area
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  todayStr,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white70,
+                      ),
+                  textAlign: TextAlign.center,
                 ),
-                color: Colors.grey[850],
-                child: Padding(
-                  padding: const EdgeInsets.all(40),
-                  child: Column(
-                    children: [
-                      if (_isLoading)
-                        const CircularProgressIndicator(
-                            color: Color(0xFF00E5FF))
-                      else ...[
-                        Text(
-                          _isClockedIn ? 'CLOCKED IN' : 'CLOCKED OUT',
-                          style: TextStyle(
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                            color: _isClockedIn
-                                ? const Color(0xFF00E5FF)
-                                : Colors.redAccent,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        if (_isClockedIn && _lastClockInTime != null) ...[
+
+                const SizedBox(height: 40),
+
+                // Main Clock Status Card
+                Card(
+                  elevation: 16,
+                  shadowColor: _isClockedIn
+                      ? const Color(0xFF00E5FF).withOpacity(0.5)
+                      : Colors.red.withOpacity(0.4),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(32),
+                  ),
+                  color: Colors.grey[850],
+                  child: Padding(
+                    padding: const EdgeInsets.all(40),
+                    child: Column(
+                      children: [
+                        if (_isLoading)
+                          const CircularProgressIndicator(
+                              color: Color(0xFF00E5FF))
+                        else ...[
                           Text(
-                            'Since ${DateFormat('HH:mm:ss').format(_lastClockInTime!)}',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              color: Colors.white70,
-                            ),
-                          ),
-                          const SizedBox(height: 12),
-                          Text(
-                            _formatDuration(
-                                DateTime.now().difference(_lastClockInTime!)),
-                            style: const TextStyle(
-                              fontSize: 42,
-                              fontWeight: FontWeight.w300,
-                              color: Color(0xFF00E5FF),
-                              letterSpacing: -1,
-                            ),
-                          ),
-                        ] else
-                          const Text(
-                            'Ready to start your day',
-                            style:
-                                TextStyle(fontSize: 18, color: Colors.white54),
-                          ),
-                        const SizedBox(height: 40),
-                        FilledButton.icon(
-                          icon: Icon(
-                            _isClockedIn ? Icons.logout : Icons.login,
-                            size: 32,
-                          ),
-                          label: Text(
-                            _isClockedIn ? 'Clock Out' : 'Clock In',
-                            style: const TextStyle(
-                              fontSize: 22,
+                            _isClockedIn ? 'CLOCKED IN' : 'CLOCKED OUT',
+                            style: TextStyle(
+                              fontSize: 36,
                               fontWeight: FontWeight.bold,
+                              color: _isClockedIn
+                                  ? const Color(0xFF00E5FF)
+                                  : Colors.redAccent,
+                              letterSpacing: 2,
                             ),
                           ),
-                          style: FilledButton.styleFrom(
-                            backgroundColor: _isClockedIn
-                                ? Colors.redAccent
-                                : const Color(0xFF00E5FF),
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 64, vertical: 24),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
+                          const SizedBox(height: 24),
+                          if (_isClockedIn && _lastClockInTime != null) ...[
+                            Text(
+                              'Since ${DateFormat('HH:mm:ss').format(_lastClockInTime!)}',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                color: Colors.white70,
+                              ),
                             ),
-                            elevation: 12,
+                            const SizedBox(height: 12),
+                            Text(
+                              _formatDuration(
+                                  DateTime.now().difference(_lastClockInTime!)),
+                              style: const TextStyle(
+                                fontSize: 42,
+                                fontWeight: FontWeight.w300,
+                                color: Color(0xFF00E5FF),
+                                letterSpacing: -1,
+                              ),
+                            ),
+                          ] else
+                            const Text(
+                              'Ready to start your day',
+                              style: TextStyle(
+                                  fontSize: 18, color: Colors.white54),
+                            ),
+                          const SizedBox(height: 40),
+                          FilledButton.icon(
+                            icon: Icon(
+                              _isClockedIn ? Icons.logout : Icons.login,
+                              size: 32,
+                            ),
+                            label: Text(
+                              _isClockedIn ? 'Clock Out' : 'Clock In',
+                              style: const TextStyle(
+                                fontSize: 22,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            style: FilledButton.styleFrom(
+                              backgroundColor: _isClockedIn
+                                  ? Colors.redAccent
+                                  : const Color(0xFF00E5FF),
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 64, vertical: 24),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              elevation: 12,
+                            ),
+                            onPressed: _toggleClock,
                           ),
-                          onPressed: _toggleClock,
-                        ),
+                        ],
                       ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 40),
+
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[850],
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "Today's Total",
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w600),
+                      ),
+                      Text(
+                        _formatDuration(currentTotal),
+                        style: const TextStyle(
+                          fontSize: 28,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF00E5FF),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ),
 
-              const SizedBox(height: 40),
+                const SizedBox(height: 32),
 
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-                decoration: BoxDecoration(
-                  color: Colors.grey[850],
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      "Today's Total",
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-                    ),
-                    Text(
-                      _formatDuration(currentTotal),
-                      style: const TextStyle(
-                        fontSize: 28,
+                Text(
+                  'Recent Clock History',
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: Color(0xFF00E5FF),
+                        color: Colors.white,
                       ),
-                    ),
-                  ],
                 ),
-              ),
+                const SizedBox(height: 12),
 
-              const SizedBox(height: 32),
-
-              Text(
-                'Recent Clock History',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-              ),
-              const SizedBox(height: 12),
-
-              Expanded(
-                child: _recentEvents.isEmpty
-                    ? const Center(
-                        child: Text(
-                          'No recent events yet',
-                          style: TextStyle(color: Colors.white54),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: _recentEvents.length,
-                        itemBuilder: (context, index) {
-                          final e = _recentEvents[index];
-                          return Card(
-                            margin: const EdgeInsets.only(bottom: 10),
-                            color: Colors.grey[850],
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: ListTile(
-                              leading: Icon(
-                                (e.type.toLowerCase() == 'in' ||
-                                        e.type.toLowerCase() == 'clock_in')
-                                    ? Icons.login
-                                    : Icons.logout,
-                                color: (e.type.toLowerCase() == 'in' ||
-                                        e.type.toLowerCase() == 'clock_in')
-                                    ? const Color(0xFF00E5FF)
-                                    : Colors.redAccent,
-                                size: 32,
-                              ),
-                              title: Text(
-                                (e.type.toLowerCase() == 'in' ||
-                                        e.type.toLowerCase() == 'clock_in')
-                                    ? 'Clocked In'
-                                    : 'Clocked Out',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              subtitle: Text(
-                                DateFormat('MMM d, yyyy • HH:mm:ss')
-                                    .format(e.timestamp),
-                                style: const TextStyle(color: Colors.white54),
-                              ),
-                              onTap: () => _editEventTime(e.id, e.timestamp),
-                            ),
-                          );
-                        },
+                // History is now part of the SAME Column → one scroll area
+                if (_recentEvents.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 60),
+                    child: Center(
+                      child: Text(
+                        'No recent events yet',
+                        style: TextStyle(color: Colors.white54),
                       ),
-              ),
-            ],
+                    ),
+                  )
+                else
+                  ..._recentEvents.map((e) => Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        color: Colors.grey[850],
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: ListTile(
+                          leading: Icon(
+                            (e.type.toLowerCase() == 'in' ||
+                                    e.type.toLowerCase() == 'clock_in')
+                                ? Icons.login
+                                : Icons.logout,
+                            color: (e.type.toLowerCase() == 'in' ||
+                                    e.type.toLowerCase() == 'clock_in')
+                                ? const Color(0xFF00E5FF)
+                                : Colors.redAccent,
+                            size: 32,
+                          ),
+                          title: Text(
+                            (e.type.toLowerCase() == 'in' ||
+                                    e.type.toLowerCase() == 'clock_in')
+                                ? 'Clocked In'
+                                : 'Clocked Out',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              color: Colors.white,
+                            ),
+                          ),
+                          subtitle: Text(
+                            DateFormat('MMM d, yyyy • HH:mm:ss')
+                                .format(e.timestamp),
+                            style: const TextStyle(color: Colors.white54),
+                          ),
+                          onTap: () => _editEventTime(e.id, e.timestamp),
+                        ),
+                      )),
+
+                const SizedBox(height: 40), // extra bottom padding
+              ],
+            ),
           ),
         ),
       ),
