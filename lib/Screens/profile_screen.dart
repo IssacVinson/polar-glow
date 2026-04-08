@@ -2,7 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/gestures.dart'; // ← Added for tappable links
+import 'package:flutter/gestures.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'privacy_policy_screen.dart';
 import 'terms_of_service_screen.dart';
@@ -46,7 +47,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
 
-  // Password change fields
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -56,7 +56,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String? _usernameError;
   String? _originalUsername;
 
-  // Polar Glow brand accent
   Color get _accentColor => const Color(0xFF00E5FF);
 
   @override
@@ -116,7 +115,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'phoneNumber': _phoneController.text.trim(),
       });
 
-      // Update usernames collection if username changed
       if (newUsername != _originalUsername?.toLowerCase() &&
           _originalUsername != null) {
         await FirebaseFirestore.instance
@@ -175,7 +173,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     setState(() => _isLoading = true);
 
     try {
-      // Re-authenticate user (required by Firebase for security)
       final credential = EmailAuthProvider.credential(
         email: FirebaseAuth.instance.currentUser!.email!,
         password: currentPass,
@@ -186,7 +183,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       await FirebaseAuth.instance.currentUser!.updatePassword(newPass);
 
-      // Clear fields
       _currentPasswordController.clear();
       _newPasswordController.clear();
       _confirmPasswordController.clear();
@@ -204,6 +200,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _launchURL(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
 
@@ -327,7 +330,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Change Password Section
               Card(
                 elevation: 8,
-                shadowColor: _accentColor.withOpacity(0.2),
+                shadowColor: _accentColor.withValues(alpha: 0.2),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(24),
                 ),
@@ -412,7 +415,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 32),
 
-              // NEW: Legal Section (Terms + Privacy Policy)
+              // Legal Section
               Card(
                 elevation: 4,
                 color: Colors.grey[850],
@@ -432,6 +435,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             ),
                       ),
                       const SizedBox(height: 16),
+
+                      // In-app links
                       RichText(
                         text: TextSpan(
                           style: const TextStyle(
@@ -481,6 +486,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ],
                         ),
                       ),
+
+                      const SizedBox(height: 20),
+
+                      // Public web links
+                      const Text(
+                        'Public (web):',
+                        style: TextStyle(color: Colors.white60, fontSize: 15),
+                      ),
+                      const SizedBox(height: 8),
+                      GestureDetector(
+                        onTap: () => _launchURL(
+                            'https://issacvinson.github.io/polar-glow/terms_of_service.html'),
+                        child: Text(
+                          'Terms of Service (web)',
+                          style: TextStyle(
+                            color: _accentColor,
+                            decoration: TextDecoration.underline,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      GestureDetector(
+                        onTap: () => _launchURL(
+                            'https://issacvinson.github.io/polar-glow/privacy_policy.html'),
+                        child: Text(
+                          'Privacy Policy (web)',
+                          style: TextStyle(
+                            color: _accentColor,
+                            decoration: TextDecoration.underline,
+                            fontSize: 15,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -497,7 +536,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
               const SizedBox(height: 16),
 
-              // Save Profile Button
               SizedBox(
                 width: double.infinity,
                 child: FilledButton.icon(

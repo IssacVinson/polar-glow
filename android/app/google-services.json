@@ -9,7 +9,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:481861301714:android:ee027400e36675491a440b",
         "android_client_info": {
-          "package_name": "com.example.polar_glow"
+          "package_name": "com.polarglowdetailing.app"
         }
       },
       "oauth_client": [
@@ -34,7 +34,7 @@
               "client_id": "481861301714-f32j5obc35vd6jeucs5b86656382uglq.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.polarGlowApp"
+                "bundle_id": "com.polarglowdetailing.app"
               }
             }
           ]
@@ -70,7 +70,7 @@
               "client_id": "481861301714-f32j5obc35vd6jeucs5b86656382uglq.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.example.polarGlowApp"
+                "bundle_id": "com.polarglowdetailing.app"
               }
             }
           ]
