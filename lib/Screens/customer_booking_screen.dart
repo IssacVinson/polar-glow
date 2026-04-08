@@ -29,6 +29,9 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   final _addressController = TextEditingController();
   final _notesController = TextEditingController();
 
+  // Dedicated FocusNode for the address field (fixes backspace + focus jumping)
+  late FocusNode _addressFocusNode;
+
   int _numCars = 1;
   List<TextEditingController> _vehicleControllers = [];
   List<TimeOfDay?> _carTimes = [];
@@ -57,6 +60,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   @override
   void initState() {
     super.initState();
+    _addressFocusNode = FocusNode();
     _selectedDay = DateTime.now();
     _focusedDay = DateTime.now();
     _updateCarControllers(_numCars);
@@ -74,6 +78,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
   @override
   void dispose() {
+    _addressFocusNode.dispose();
     _addressController.dispose();
     _notesController.dispose();
     for (var c in _vehicleControllers) {
@@ -368,6 +373,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Selected Services
                     Card(
                       elevation: 8,
                       shadowColor: _accentColor.withValues(alpha: 0.3),
@@ -447,33 +453,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
                     const SizedBox(height: 28),
 
-                    // Address field moved to the very top (right after services)
-                    // This prevents focus jumping to the car details fields
-                    GooglePlaceAutoCompleteTextField(
-                      googleAPIKey: "AIzaSyDxrc2tPDR-SpPhC5rBZynOPxnbBvN2oGc",
-                      textEditingController: _addressController,
-                      inputDecoration: InputDecoration(
-                        labelText: 'Address',
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        hintText: 'Start typing your address...',
-                        hintStyle: const TextStyle(color: Colors.white38),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        filled: true,
-                        fillColor: Colors.black12,
-                        prefixIcon:
-                            Icon(Icons.location_on, color: _accentColor),
-                      ),
-                      debounceTime: 800,
-                      itemClick: (prediction) {
-                        _addressController.text = prediction.description ?? '';
-                      },
-                      isLatLngRequired: false,
-                    ),
-
-                    const SizedBox(height: 28),
-
+                    // How many cars?
                     Card(
                       elevation: 8,
                       shadowColor: _accentColor.withValues(alpha: 0.3),
@@ -502,7 +482,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                             ),
                             const SizedBox(height: 16),
                             DropdownButtonFormField<int>(
-                              value: _numCars,
+                              initialValue: _numCars,
                               decoration: InputDecoration(
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(12),
@@ -541,6 +521,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
                     const SizedBox(height: 28),
 
+                    // Car Details
                     ...List.generate(_numCars, (index) {
                       return Card(
                         key: ValueKey('car-$index'),
@@ -592,23 +573,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
                     const SizedBox(height: 28),
 
-                    TextFormField(
-                      controller: _notesController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Additional Notes',
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        filled: true,
-                        fillColor: Colors.black12,
-                      ),
-                      maxLines: 3,
-                    ),
-
-                    const SizedBox(height: 32),
-
+                    // Select Date (Calendar)
                     Card(
                       elevation: 8,
                       shadowColor: _accentColor.withValues(alpha: 0.3),
@@ -652,6 +617,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
                     const SizedBox(height: 28),
 
+                    // Available Times
                     Card(
                       elevation: 8,
                       shadowColor: _accentColor.withValues(alpha: 0.3),
@@ -724,7 +690,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                                         ),
                                         const SizedBox(height: 12),
                                         DropdownButtonFormField<String?>(
-                                          value: null,
+                                          initialValue: null,
                                           hint: Text(
                                             'Select time for Car ${carIndex + 1}',
                                             style: const TextStyle(
@@ -766,11 +732,14 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                                             });
                                           }).toList(),
                                           onChanged: (selectedUniqueValue) {
-                                            if (selectedUniqueValue == null)
+                                            if (selectedUniqueValue == null) {
                                               return;
+                                            }
                                             final parts =
                                                 selectedUniqueValue.split('||');
-                                            if (parts.length != 2) return;
+                                            if (parts.length != 2) {
+                                              return;
+                                            }
 
                                             final empId = parts[0];
                                             final slot = parts[1];
@@ -847,7 +816,52 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                       ),
                     ),
 
-                    const SizedBox(height: 140),
+                    const SizedBox(height: 28),
+
+                    // Address field
+                    GooglePlaceAutoCompleteTextField(
+                      focusNode: _addressFocusNode,
+                      googleAPIKey: "AIzaSyDxrc2tPDR-SpPhC5rBZynOPxnbBvN2oGc",
+                      textEditingController: _addressController,
+                      inputDecoration: InputDecoration(
+                        labelText: 'Address',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        hintText: 'Start typing your address...',
+                        hintStyle: const TextStyle(color: Colors.white38),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        filled: true,
+                        fillColor: Colors.black12,
+                        prefixIcon:
+                            Icon(Icons.location_on, color: _accentColor),
+                      ),
+                      debounceTime: 800,
+                      itemClick: (prediction) {
+                        _addressController.text = prediction.description ?? '';
+                        _addressFocusNode.requestFocus();
+                      },
+                      isLatLngRequired: false,
+                    ),
+
+                    const SizedBox(height: 28),
+
+                    // Additional Notes
+                    TextFormField(
+                      controller: _notesController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: InputDecoration(
+                        labelText: 'Additional Notes',
+                        labelStyle: const TextStyle(color: Colors.white70),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        filled: true,
+                        fillColor: Colors.black12,
+                      ),
+                      maxLines: 3,
+                    ),
+                    const SizedBox(height: 10),
                   ],
                 ),
               ),
