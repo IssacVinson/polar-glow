@@ -1,10 +1,6 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-  -->
   <base href="$FLUTTER_BASE_HREF">
 
   <meta charset="UTF-8">
@@ -17,14 +13,34 @@
   <meta name="apple-mobile-web-app-title" content="Polar Glow">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
-  <!-- Google Sign-In meta (kept for future use) -->
-  <meta name="google-signin-client_id" content="481861301714-ugljctpjsd3c6f9isrmvsh0nq5a6s5ip.apps.googleusercontent.com">
-
   <title>Polar Glow</title>
   <link rel="icon" type="image/png" href="favicon.png"/>
 
   <!-- Google Fonts -->
   <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700" rel="stylesheet">
+
+  <!-- ==================== Firebase SDK for Web ==================== -->
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-storage-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-functions-compat.js"></script>
+
+  <script>
+    // Your Firebase config (pulled from firebase_options.dart)
+    const firebaseConfig = {
+      apiKey: "AIzaSyC20xXpWmvLSCddNlzxalSFffIdbcX5cV0",
+      authDomain: "polar-glow-backend.firebaseapp.com",
+      projectId: "polar-glow-backend",
+      storageBucket: "polar-glow-backend.firebasestorage.app",
+      messagingSenderId: "481861301714",
+      appId: "1:481861301714:web:80a74e1da81b3b291a440b"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+  </script>
+  <!-- ============================================================ -->
 
   <script defer src="flutter_bootstrap.js" type="application/javascript"></script>
 </head>

@@ -1,4 +1,5 @@
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_stripe/flutter_stripe.dart';
@@ -18,8 +19,11 @@ void main() async {
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   // Load Stripe publishable key from .env (never committed to GitHub)
-  Stripe.publishableKey = dotenv.env['STRIPE_PUBLISHABLE_KEY']!;
-  await Stripe.instance.applySettings();
+  // Skip on web because flutter_stripe has no web support
+  if (!kIsWeb) {
+    Stripe.publishableKey = dotenv.env['STRIPE_PUBLISHABLE_KEY']!;
+    await Stripe.instance.applySettings();
+  }
 
   runApp(
     ChangeNotifierProvider(
