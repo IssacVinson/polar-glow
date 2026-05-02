@@ -1,4 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart'
+    hide AuthProvider; // ← FIXED: hides conflicting name
 import 'package:flutter/material.dart';
 import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:google_places_flutter/google_places_flutter.dart';
@@ -29,13 +31,8 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   final _addressController = TextEditingController();
   final _notesController = TextEditingController();
 
-  // Dedicated FocusNode for the address field (fixes backspace + focus jumping)
   late FocusNode _addressFocusNode;
-
-  // Scroll controller for auto-scrolling to first missing required field
   late ScrollController _scrollController;
-
-  // Key for address field so we can scroll exactly to it
   final _addressKey = GlobalKey();
 
   int _numCars = 1;
@@ -63,7 +60,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
   Color get _accentColor => const Color(0xFF00E5FF);
 
-  // NEW: Check if every car has a selected time slot
   bool get _allCarsHaveTime => !_carTimes.any((t) => t == null);
 
   @override
@@ -98,7 +94,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
     super.dispose();
   }
 
-  // Helper to scroll to the first missing required field and focus it
   void _focusFirstMissingField() {
     if (_addressController.text.trim().isEmpty) {
       _addressFocusNode.requestFocus();
@@ -344,10 +339,21 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
     }
 
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        print('🔄 Refreshing auth token before payment...');
+        await user.reload();
+        await user.getIdToken(true);
+      }
+
+      print('🔥 Calling createPaymentIntent for booking ${docRef.id}');
+
       final paymentData = await _firestore.createPaymentIntent(
         bookingId: docRef.id,
         amount: _totalPrice,
       );
+
+      print('✅ PaymentIntent created successfully');
 
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
@@ -358,6 +364,8 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
       );
 
       await Stripe.instance.presentPaymentSheet();
+
+      print('✅ PaymentSheet presented and completed');
 
       await _firestore.confirmStripePayment(
         bookingId: docRef.id,
@@ -373,12 +381,23 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
+      print('❌ PAYMENT ERROR DETAILS:');
+      print(e);
+      print('Stack trace:');
+      print(StackTrace.current);
+
+      await _firestore.deleteBooking(docRef.id);
+
       String userMessage = 'Payment failed. Please try again or use cash.';
 
       if (e.toString().contains('UNAUTHENTICATED') ||
-          e.toString().contains('unauthenticated')) {
+          e.toString().contains('unauthenticated') ||
+          e.toString().contains('Session expired')) {
         userMessage =
             'Session expired.\nPlease log out and log back in, then try again.';
+      } else if (e.toString().contains('payment') ||
+          e.toString().contains('Stripe')) {
+        userMessage = 'Stripe payment issue. Please try again or use cash.';
       }
 
       if (mounted) {
@@ -642,7 +661,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
                 const SizedBox(height: 28),
 
-                // Select Date (Calendar) - reduced for large phones (S25 Ultra)
+                // Select Date (Calendar)
                 Card(
                   elevation: 8,
                   shadowColor: _accentColor.withValues(alpha: 0.3),
@@ -671,8 +690,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                         ),
                         const SizedBox(height: 16),
                         SizedBox(
-                          height: screenHeight *
-                              0.45, // ← further reduced for S25 Ultra
+                          height: screenHeight * 0.45,
                           child: CustomerCalendarView(
                             selectedRegion: widget.selectedRegion,
                             onDaySelected: _onDaySelected,
@@ -932,7 +950,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                   ),
                   maxLines: 3,
                 ),
-                const SizedBox(height: 120), // reduced for large phones
+                const SizedBox(height: 120),
               ],
             ),
           ),

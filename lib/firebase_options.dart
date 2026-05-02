@@ -53,7 +53,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'polar-glow-backend.firebasestorage.app',
     iosClientId:
         '481861301714-j1gp8miaaijim69t9ukmogr482bllqjh.apps.googleusercontent.com',
-    iosBundleId: 'com.polarglowdetailing.app',
+    iosBundleId: 'com.polarglowak.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -64,7 +64,7 @@ class DefaultFirebaseOptions {
     storageBucket: 'polar-glow-backend.firebasestorage.app',
     iosClientId:
         '481861301714-j1gp8miaaijim69t9ukmogr482bllqjh.apps.googleusercontent.com',
-    iosBundleId: 'com.polarglowdetailing.app',
+    iosBundleId: 'com.polarglowak.app',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(

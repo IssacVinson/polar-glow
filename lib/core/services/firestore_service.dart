@@ -1,9 +1,9 @@
 // lib/core/services/firestore_service.dart
-// FINAL VERSION: YTD hours include ALL hours this year (paid + unpaid)
-// All methods required by admin_finance_screen.dart are present
+// FIXED: Added deleteBooking + stronger auth refresh for createPaymentIntent
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 import '../models/app_user.dart';
 import '../models/service_model.dart';
@@ -35,7 +35,6 @@ class FirestoreService {
     final user = await getUser(employeeId);
     final rate = user?.hourlyRate ?? 0.0;
 
-    // Last payout date
     final payoutSnap = await _db
         .collection('wage_payouts')
         .where('employeeId', isEqualTo: employeeId)
@@ -51,13 +50,11 @@ class FirestoreService {
       lastPayoutDate = allPayouts.first.paidAt;
     }
 
-    // YTD Pay
     final yearStart = DateTime(now.year, 1, 1);
     final ytdPay = allPayouts
         .where((p) => !p.paidAt.isBefore(yearStart))
         .fold<double>(0.0, (sum, p) => sum + p.grossPay);
 
-    // Clock events
     final clockSnap = await _db
         .collection('users')
         .doc(employeeId)
@@ -74,7 +71,6 @@ class FirestoreService {
       final timestamp = (data['timestamp'] as Timestamp).toDate();
       final eventDate = AlaskaDateUtils.toAlaskaDayKey(timestamp);
 
-      // Unpaid hours (since last payout, not already paid out)
       if (data['payoutId'] == null && !eventDate.isBefore(lastPayoutDate)) {
         if (type == 'in' || type == 'clock_in') {
           openIn = timestamp;
@@ -84,7 +80,6 @@ class FirestoreService {
         }
       }
 
-      // YTD hours (ALL hours this year)
       if (!eventDate.isBefore(yearStart)) {
         if (type == 'in' || type == 'clock_in') {
           openIn = timestamp;
@@ -141,7 +136,6 @@ class FirestoreService {
 
     final payoutId = await createWagePayout(payout);
 
-    // Mark clock events as paid
     final clockSnap = await _db
         .collection('users')
         .doc(employeeId)
@@ -156,7 +150,6 @@ class FirestoreService {
     }
     await batch.commit();
 
-    // Mark approved reimbursements as paid
     final reimbSnap = await _db
         .collection('reimbursements')
         .where('employeeId', isEqualTo: employeeId)
@@ -252,9 +245,7 @@ class FirestoreService {
     });
   }
 
-  // ====================== REMAINING METHODS (unchanged) ======================
-  // services, bookings, stripe, clock events, etc.
-
+  // ====================== SERVICES, BOOKINGS, STRIPE, CLOCK EVENTS ======================
   Future<List<ServiceModel>> getServices() async {
     final snapshot = await _db.collection('services').get();
     return snapshot.docs
@@ -279,6 +270,15 @@ class FirestoreService {
     return await _db.collection('bookings').add(booking.toMap());
   }
 
+  /// NEW: Cleanup booking if Stripe payment fails
+  Future<void> deleteBooking(String bookingId) async {
+    try {
+      await _db.collection('bookings').doc(bookingId).delete();
+    } catch (e) {
+      print('Warning: Could not delete booking $bookingId: $e');
+    }
+  }
+
   Future<void> markBookingCompleted(
       {required String bookingId, required String employeeId}) async {
     await _db.collection('bookings').doc(bookingId).update({
@@ -297,16 +297,50 @@ class FirestoreService {
     });
   }
 
-  Future<Map<String, dynamic>> createPaymentIntent(
-      {required String bookingId, required double amount}) async {
-    final callable = _functions.httpsCallable('createPaymentIntent');
-    final result = await callable
-        .call({'bookingId': bookingId, 'amount': (amount * 100).round()});
-    return result.data as Map<String, dynamic>;
+  /// FIXED: Aggressive auth refresh (fixes UNAUTHENTICATED / session expired)
+  Future<Map<String, dynamic>> createPaymentIntent({
+    required String bookingId,
+    required double amount,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      throw Exception(
+          'User must be authenticated to create a payment intent. Please log in again.');
+    }
+
+    // Strongest possible token refresh
+    await user.reload();
+    await user.getIdToken(true);
+
+    final callable = _functions.httpsCallable(
+      'createPaymentIntent',
+      options: HttpsCallableOptions(
+        timeout: const Duration(seconds: 60),
+      ),
+    );
+
+    try {
+      final result = await callable.call({
+        'bookingId': bookingId,
+        'amount': (amount * 100).round(),
+      });
+      return result.data as Map<String, dynamic>;
+    } on FirebaseFunctionsException catch (e) {
+      if (e.code == 'unauthenticated') {
+        throw Exception(
+            'Session expired. Please log out and log back in, then try again.');
+      }
+      throw Exception('Payment intent creation failed: ${e.message}');
+    } catch (e) {
+      throw Exception('Unexpected error creating payment intent: $e');
+    }
   }
 
-  Future<void> confirmStripePayment(
-      {required String bookingId, required String paymentIntentId}) async {
+  Future<void> confirmStripePayment({
+    required String bookingId,
+    required String paymentIntentId,
+  }) async {
     await _db.collection('bookings').doc(bookingId).update({
       'paymentStatus': 'paid',
       'paymentIntentId': paymentIntentId,

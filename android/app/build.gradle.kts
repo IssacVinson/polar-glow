@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.polarglowdetailing.app"
+    namespace = "com.polarglowak.app"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -22,7 +22,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.polarglowdetailing.app"
+        applicationId = "com.polarglowak.app"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

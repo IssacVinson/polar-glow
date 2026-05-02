@@ -1,4 +1,4 @@
-package com.polarglowdetailing.app
+package com.polarglowak.app
 
 import io.flutter.embedding.android.FlutterFragmentActivity
 
