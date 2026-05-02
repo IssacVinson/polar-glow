@@ -16,7 +16,7 @@ import '../utils/alaska_date_utils.dart';
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseFunctions _functions =
-      FirebaseFunctions.instanceFor(region: 'us-central1');
+      FirebaseFunctions.instanceFor(region: 'us-west1');
 
   // ====================== USERS ======================
   Future<AppUser?> getUser(String uid) async {

@@ -32,6 +32,12 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   // Dedicated FocusNode for the address field (fixes backspace + focus jumping)
   late FocusNode _addressFocusNode;
 
+  // Scroll controller for auto-scrolling to first missing required field
+  late ScrollController _scrollController;
+
+  // Key for address field so we can scroll exactly to it
+  final _addressKey = GlobalKey();
+
   int _numCars = 1;
   List<TextEditingController> _vehicleControllers = [];
   List<TimeOfDay?> _carTimes = [];
@@ -57,10 +63,14 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
   Color get _accentColor => const Color(0xFF00E5FF);
 
+  // NEW: Check if every car has a selected time slot
+  bool get _allCarsHaveTime => !_carTimes.any((t) => t == null);
+
   @override
   void initState() {
     super.initState();
     _addressFocusNode = FocusNode();
+    _scrollController = ScrollController();
     _selectedDay = DateTime.now();
     _focusedDay = DateTime.now();
     _updateCarControllers(_numCars);
@@ -79,12 +89,37 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   @override
   void dispose() {
     _addressFocusNode.dispose();
+    _scrollController.dispose();
     _addressController.dispose();
     _notesController.dispose();
     for (var c in _vehicleControllers) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  // Helper to scroll to the first missing required field and focus it
+  void _focusFirstMissingField() {
+    if (_addressController.text.trim().isEmpty) {
+      _addressFocusNode.requestFocus();
+      Future.delayed(const Duration(milliseconds: 100), () {
+        if (_addressKey.currentContext != null) {
+          Scrollable.ensureVisible(
+            _addressKey.currentContext!,
+            duration: const Duration(milliseconds: 400),
+            curve: Curves.easeInOut,
+          );
+        }
+      });
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Please fill all required fields above'),
+        backgroundColor: Colors.orange,
+      ),
+    );
   }
 
   Future<void> _loadEmployees() async {
@@ -194,7 +229,15 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   }
 
   Future<DocumentReference?> _createBooking(String paymentMethod) async {
-    if (!_formKey.currentState!.validate()) return null;
+    if (!_formKey.currentState!.validate()) {
+      _focusFirstMissingField();
+      return null;
+    }
+
+    if (_addressController.text.trim().isEmpty) {
+      _focusFirstMissingField();
+      return null;
+    }
 
     if (_selectedDay == null) {
       ScaffoldMessenger.of(context)
@@ -202,9 +245,11 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
       return null;
     }
 
-    if (_carTimes.any((t) => t == null)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please select a time for each car')));
+    if (!_allCarsHaveTime) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Please select a time for every car'),
+        backgroundColor: Colors.red,
+      ));
       return null;
     }
 
@@ -278,6 +323,20 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   Future<void> _payWithCard() async {
     setState(() => _isProcessingPayment = true);
 
+    final authProvider = context.read<AuthProvider>();
+    if (authProvider.user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Please sign in again to continue'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+      setState(() => _isProcessingPayment = false);
+      return;
+    }
+
     final docRef = await _createBooking('stripe');
     if (docRef == null) {
       setState(() => _isProcessingPayment = false);
@@ -314,9 +373,21 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
+      String userMessage = 'Payment failed. Please try again or use cash.';
+
+      if (e.toString().contains('UNAUTHENTICATED') ||
+          e.toString().contains('unauthenticated')) {
+        userMessage =
+            'Session expired.\nPlease log out and log back in, then try again.';
+      }
+
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Payment failed: $e')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(userMessage),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } finally {
       if (mounted) setState(() => _isProcessingPayment = false);
@@ -349,8 +420,10 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final screenHeight = MediaQuery.of(context).size.height;
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       backgroundColor: Colors.grey[900],
       appBar: AppBar(
         title: const Text(
@@ -362,512 +435,508 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
         elevation: 4,
         centerTitle: true,
       ),
-      body: CustomScrollView(
+      body: SingleChildScrollView(
+        controller: _scrollController,
         physics: const BouncingScrollPhysics(),
-        slivers: [
-          SliverPadding(
-            padding: const EdgeInsets.all(20),
-            sliver: SliverToBoxAdapter(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Selected Services
-                    Card(
-                      elevation: 8,
-                      shadowColor: _accentColor.withValues(alpha: 0.3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      color: colorScheme.surface,
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Selected Services
+                Card(
+                  elevation: 8,
+                  shadowColor: _accentColor.withValues(alpha: 0.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  color: colorScheme.surface,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
                           children: [
-                            Row(
-                              children: [
-                                Icon(Icons.spa, color: _accentColor, size: 28),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Selected Services',
-                                  style: textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            ...widget.selectedServices.map(
-                              (s) => Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8),
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      s['name'] ?? 'Service',
-                                      style: textTheme.titleMedium?.copyWith(
-                                        color: Colors.white70,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                    Text(
-                                      '\$${(s['price'] as num).toDouble().toStringAsFixed(2)}',
-                                      style: textTheme.titleMedium?.copyWith(
-                                        color: _accentColor,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                ),
+                            Icon(Icons.spa, color: _accentColor, size: 28),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Selected Services',
+                              style: textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
                               ),
                             ),
-                            const Divider(height: 32, color: Colors.white24),
-                            Row(
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        ...widget.selectedServices.map(
+                          (s) => Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
+                            child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  'Total:',
-                                  style: textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
+                                  s['name'] ?? 'Service',
+                                  style: textTheme.titleMedium?.copyWith(
+                                    color: Colors.white70,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                                 Text(
-                                  '\$${_totalPrice.toStringAsFixed(2)}',
-                                  style: textTheme.headlineMedium?.copyWith(
+                                  '\$${(s['price'] as num).toDouble().toStringAsFixed(2)}',
+                                  style: textTheme.titleMedium?.copyWith(
                                     color: _accentColor,
                                     fontWeight: FontWeight.bold,
                                   ),
                                 ),
                               ],
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // How many cars?
-                    Card(
-                      elevation: 8,
-                      shadowColor: _accentColor.withValues(alpha: 0.3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      color: colorScheme.surface,
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.directions_car,
-                                    color: _accentColor, size: 28),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'How many cars?',
-                                  style: textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            DropdownButtonFormField<int>(
-                              initialValue: _numCars,
-                              decoration: InputDecoration(
-                                border: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                  borderSide:
-                                      const BorderSide(color: Colors.white24),
-                                ),
-                                filled: true,
-                                fillColor: Colors.black12,
-                              ),
-                              dropdownColor: Colors.grey[850],
-                              style: const TextStyle(
-                                  color: Colors.white, fontSize: 18),
-                              items: List.generate(5, (i) => i + 1)
-                                  .map((n) => DropdownMenuItem(
-                                        value: n,
-                                        child: Text(
-                                          '$n car${n > 1 ? 's' : ''}',
-                                          style: const TextStyle(
-                                              color: Colors.white),
-                                        ),
-                                      ))
-                                  .toList(),
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    _numCars = val;
-                                    _updateCarControllers(val);
-                                  });
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // Car Details
-                    ...List.generate(_numCars, (index) {
-                      return Card(
-                        key: ValueKey('car-$index'),
-                        margin: const EdgeInsets.only(bottom: 20),
-                        elevation: 8,
-                        shadowColor: _accentColor.withValues(alpha: 0.3),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        color: colorScheme.surface,
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Car ${index + 1} Details',
-                                style: textTheme.titleLarge?.copyWith(
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
-                              const SizedBox(height: 16),
-                              TextFormField(
-                                controller: _vehicleControllers[index],
-                                autofocus: false,
-                                style: const TextStyle(color: Colors.white),
-                                decoration: InputDecoration(
-                                  labelText: 'Color, Make, Model',
-                                  labelStyle:
-                                      const TextStyle(color: Colors.white70),
-                                  hintText: 'e.g. Black Toyota Camry',
-                                  hintStyle:
-                                      const TextStyle(color: Colors.white38),
-                                  border: OutlineInputBorder(
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  filled: true,
-                                  fillColor: Colors.black12,
-                                ),
-                                validator: (v) =>
-                                    v!.trim().isEmpty ? 'Required' : null,
-                              ),
-                            ],
                           ),
                         ),
-                      );
-                    }),
-
-                    const SizedBox(height: 28),
-
-                    // Select Date (Calendar)
-                    Card(
-                      elevation: 8,
-                      shadowColor: _accentColor.withValues(alpha: 0.3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      color: colorScheme.surface,
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                        const Divider(height: 32, color: Colors.white24),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
-                              children: [
-                                Icon(Icons.calendar_today,
-                                    color: _accentColor, size: 28),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Select Date',
-                                  style: textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
+                            Text(
+                              'Total:',
+                              style: textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
                             ),
-                            const SizedBox(height: 16),
-                            SizedBox(
-                              height: 420,
-                              child: CustomerCalendarView(
-                                selectedRegion: widget.selectedRegion,
-                                onDaySelected: _onDaySelected,
-                                selectedDay: _selectedDay,
-                                focusedDay: _focusedDay,
+                            Text(
+                              '\$${_totalPrice.toStringAsFixed(2)}',
+                              style: textTheme.headlineMedium?.copyWith(
+                                color: _accentColor,
+                                fontWeight: FontWeight.bold,
                               ),
                             ),
                           ],
                         ),
-                      ),
+                      ],
                     ),
-
-                    const SizedBox(height: 28),
-
-                    // Available Times
-                    Card(
-                      elevation: 8,
-                      shadowColor: _accentColor.withValues(alpha: 0.3),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      color: colorScheme.surface,
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(Icons.access_time,
-                                    color: _accentColor, size: 28),
-                                const SizedBox(width: 12),
-                                Text(
-                                  'Available Times',
-                                  style: textTheme.titleLarge?.copyWith(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.white,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            if (_loadingSlots)
-                              const Center(
-                                  child: CircularProgressIndicator(
-                                      color: Color(0xFF00E5FF)))
-                            else if (_selectedDay == null)
-                              const Text(
-                                'Select a date above',
-                                style: TextStyle(color: Colors.white70),
-                              )
-                            else if (_availableSlots.isEmpty)
-                              const Text(
-                                'No available detailers in your region on this day',
-                                style: TextStyle(color: Colors.redAccent),
-                              )
-                            else
-                              Column(
-                                children: List.generate(_numCars, (carIndex) {
-                                  final selectedTime = _carTimes[carIndex];
-                                  final selectedTimeStr =
-                                      selectedTime?.format(context);
-
-                                  final usedTimes = _carTimes
-                                      .asMap()
-                                      .entries
-                                      .where((e) =>
-                                          e.key != carIndex && e.value != null)
-                                      .map((e) => e.value!.format(context))
-                                      .toSet();
-
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 24),
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Car ${carIndex + 1}',
-                                          style: const TextStyle(
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 12),
-                                        DropdownButtonFormField<String?>(
-                                          initialValue: null,
-                                          hint: Text(
-                                            'Select time for Car ${carIndex + 1}',
-                                            style: const TextStyle(
-                                                color: Colors.white54),
-                                          ),
-                                          dropdownColor: Colors.grey[850],
-                                          style: const TextStyle(
-                                              color: Colors.white),
-                                          decoration: InputDecoration(
-                                            border: OutlineInputBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12),
-                                            ),
-                                            filled: true,
-                                            fillColor: Colors.black12,
-                                          ),
-                                          items: _availableSlots.expand((emp) {
-                                            final empId =
-                                                emp['employeeId'] as String;
-                                            final empName =
-                                                emp['employeeName'] as String;
-                                            return (emp['slots']
-                                                    as List<String>)
-                                                .where((slot) =>
-                                                    !usedTimes.contains(slot
-                                                        .split(' – ')[0]
-                                                        .trim()))
-                                                .map((slot) {
-                                              final uniqueValue =
-                                                  '$empId||$slot';
-                                              return DropdownMenuItem<String>(
-                                                value: uniqueValue,
-                                                child: Text(
-                                                  '$empName: $slot',
-                                                  style: const TextStyle(
-                                                      color: Colors.white),
-                                                ),
-                                              );
-                                            });
-                                          }).toList(),
-                                          onChanged: (selectedUniqueValue) {
-                                            if (selectedUniqueValue == null) {
-                                              return;
-                                            }
-                                            final parts =
-                                                selectedUniqueValue.split('||');
-                                            if (parts.length != 2) {
-                                              return;
-                                            }
-
-                                            final empId = parts[0];
-                                            final slot = parts[1];
-
-                                            final startStr =
-                                                slot.split(' – ')[0].trim();
-                                            TimeOfDay? parsedTime;
-
-                                            try {
-                                              final timeParts =
-                                                  startStr.split(':');
-                                              if (timeParts.length == 2) {
-                                                final hour =
-                                                    int.parse(timeParts[0]);
-                                                final minute =
-                                                    int.parse(timeParts[1]);
-                                                parsedTime = TimeOfDay(
-                                                    hour: hour, minute: minute);
-                                              }
-                                            } catch (_) {}
-
-                                            if (parsedTime == null) {
-                                              try {
-                                                final format =
-                                                    DateFormat('h:mm a');
-                                                final dt =
-                                                    format.parse(startStr);
-                                                parsedTime =
-                                                    TimeOfDay.fromDateTime(dt);
-                                              } catch (_) {
-                                                ScaffoldMessenger.of(context)
-                                                    .showSnackBar(SnackBar(
-                                                        content: Text(
-                                                            'Cannot parse time: $startStr')));
-                                                return;
-                                              }
-                                            }
-
-                                            setState(() {
-                                              _carTimes[carIndex] = parsedTime;
-                                              _selectedFullSlots[carIndex] =
-                                                  slot;
-                                              _selectedDetailerId = empId;
-                                            });
-                                          },
-                                        ),
-                                        if (selectedTimeStr != null) ...[
-                                          const SizedBox(height: 12),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(
-                                                horizontal: 14, vertical: 8),
-                                            decoration: BoxDecoration(
-                                              color: _accentColor.withValues(
-                                                  alpha: 0.15),
-                                              borderRadius:
-                                                  BorderRadius.circular(30),
-                                            ),
-                                            child: Text(
-                                              'Selected: $selectedTimeStr',
-                                              style: TextStyle(
-                                                color: _accentColor,
-                                                fontWeight: FontWeight.w600,
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  );
-                                }),
-                              ),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // Address field
-                    GooglePlaceAutoCompleteTextField(
-                      focusNode: _addressFocusNode,
-                      googleAPIKey: "AIzaSyDxrc2tPDR-SpPhC5rBZynOPxnbBvN2oGc",
-                      textEditingController: _addressController,
-                      inputDecoration: InputDecoration(
-                        labelText: 'Address',
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        hintText: 'Start typing your address...',
-                        hintStyle: const TextStyle(color: Colors.white38),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        filled: true,
-                        fillColor: Colors.black12,
-                        prefixIcon:
-                            Icon(Icons.location_on, color: _accentColor),
-                      ),
-                      debounceTime: 800,
-                      itemClick: (prediction) {
-                        _addressController.text = prediction.description ?? '';
-                        _addressFocusNode.requestFocus();
-                      },
-                      isLatLngRequired: false,
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    // Additional Notes
-                    TextFormField(
-                      controller: _notesController,
-                      style: const TextStyle(color: Colors.white),
-                      decoration: InputDecoration(
-                        labelText: 'Additional Notes',
-                        labelStyle: const TextStyle(color: Colors.white70),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        filled: true,
-                        fillColor: Colors.black12,
-                      ),
-                      maxLines: 3,
-                    ),
-                    const SizedBox(height: 10),
-                  ],
+                  ),
                 ),
-              ),
+
+                const SizedBox(height: 28),
+
+                // How many cars?
+                Card(
+                  elevation: 8,
+                  shadowColor: _accentColor.withValues(alpha: 0.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  color: colorScheme.surface,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.directions_car,
+                                color: _accentColor, size: 28),
+                            const SizedBox(width: 12),
+                            Text(
+                              'How many cars?',
+                              style: textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        DropdownButtonFormField<int>(
+                          initialValue: _numCars,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide:
+                                  const BorderSide(color: Colors.white24),
+                            ),
+                            filled: true,
+                            fillColor: Colors.black12,
+                          ),
+                          dropdownColor: Colors.grey[850],
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 18),
+                          items: List.generate(5, (i) => i + 1)
+                              .map((n) => DropdownMenuItem(
+                                    value: n,
+                                    child: Text(
+                                      '$n car${n > 1 ? 's' : ''}',
+                                      style:
+                                          const TextStyle(color: Colors.white),
+                                    ),
+                                  ))
+                              .toList(),
+                          onChanged: (val) {
+                            if (val != null) {
+                              setState(() {
+                                _numCars = val;
+                                _updateCarControllers(val);
+                              });
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // Car Details
+                ...List.generate(_numCars, (index) {
+                  return Card(
+                    key: ValueKey('car-$index'),
+                    margin: const EdgeInsets.only(bottom: 20),
+                    elevation: 8,
+                    shadowColor: _accentColor.withValues(alpha: 0.3),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    color: colorScheme.surface,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Car ${index + 1} Details',
+                            style: textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _vehicleControllers[index],
+                            autofocus: false,
+                            style: const TextStyle(color: Colors.white),
+                            decoration: InputDecoration(
+                              labelText: 'Color, Make, Model',
+                              labelStyle:
+                                  const TextStyle(color: Colors.white70),
+                              hintText: 'e.g. Black Toyota Camry',
+                              hintStyle: const TextStyle(color: Colors.white38),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              filled: true,
+                              fillColor: Colors.black12,
+                            ),
+                            validator: (v) =>
+                                v!.trim().isEmpty ? 'Required' : null,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }),
+
+                const SizedBox(height: 28),
+
+                // Select Date (Calendar) - reduced for large phones (S25 Ultra)
+                Card(
+                  elevation: 8,
+                  shadowColor: _accentColor.withValues(alpha: 0.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  color: colorScheme.surface,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.calendar_today,
+                                color: _accentColor, size: 28),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Select Date',
+                              style: textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: screenHeight *
+                              0.45, // ← further reduced for S25 Ultra
+                          child: CustomerCalendarView(
+                            selectedRegion: widget.selectedRegion,
+                            onDaySelected: _onDaySelected,
+                            selectedDay: _selectedDay,
+                            focusedDay: _focusedDay,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // Available Times
+                Card(
+                  elevation: 8,
+                  shadowColor: _accentColor.withValues(alpha: 0.3),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  color: colorScheme.surface,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.access_time,
+                                color: _accentColor, size: 28),
+                            const SizedBox(width: 12),
+                            Text(
+                              'Available Times',
+                              style: textTheme.titleLarge?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        if (!_allCarsHaveTime && _selectedDay != null)
+                          const Text(
+                            'Please select a time for every car',
+                            style: TextStyle(color: Colors.red, fontSize: 14),
+                          ),
+                        const SizedBox(height: 16),
+                        if (_loadingSlots)
+                          const Center(
+                              child: CircularProgressIndicator(
+                                  color: Color(0xFF00E5FF)))
+                        else if (_selectedDay == null)
+                          const Text(
+                            'Select a date above',
+                            style: TextStyle(color: Colors.white70),
+                          )
+                        else if (_availableSlots.isEmpty)
+                          const Text(
+                            'No available detailers in your region on this day',
+                            style: TextStyle(color: Colors.redAccent),
+                          )
+                        else
+                          Column(
+                            children: List.generate(_numCars, (carIndex) {
+                              final selectedTime = _carTimes[carIndex];
+                              final selectedTimeStr =
+                                  selectedTime?.format(context);
+
+                              final usedTimes = _carTimes
+                                  .asMap()
+                                  .entries
+                                  .where((e) =>
+                                      e.key != carIndex && e.value != null)
+                                  .map((e) => e.value!.format(context))
+                                  .toSet();
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 24),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      'Car ${carIndex + 1}',
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                        fontSize: 18,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 12),
+                                    DropdownButtonFormField<String?>(
+                                      initialValue: null,
+                                      hint: Text(
+                                        'Select time for Car ${carIndex + 1}',
+                                        style: const TextStyle(
+                                            color: Colors.white54),
+                                      ),
+                                      dropdownColor: Colors.grey[850],
+                                      style:
+                                          const TextStyle(color: Colors.white),
+                                      decoration: InputDecoration(
+                                        border: OutlineInputBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                        ),
+                                        filled: true,
+                                        fillColor: Colors.black12,
+                                      ),
+                                      items: _availableSlots.expand((emp) {
+                                        final empId =
+                                            emp['employeeId'] as String;
+                                        final empName =
+                                            emp['employeeName'] as String;
+                                        return (emp['slots'] as List<String>)
+                                            .where((slot) =>
+                                                !usedTimes.contains(slot
+                                                    .split(' – ')[0]
+                                                    .trim()))
+                                            .map((slot) {
+                                          final uniqueValue = '$empId||$slot';
+                                          return DropdownMenuItem<String>(
+                                            value: uniqueValue,
+                                            child: Text(
+                                              '$empName: $slot',
+                                              style: const TextStyle(
+                                                  color: Colors.white),
+                                            ),
+                                          );
+                                        });
+                                      }).toList(),
+                                      onChanged: (selectedUniqueValue) {
+                                        if (selectedUniqueValue == null) {
+                                          return;
+                                        }
+                                        final parts =
+                                            selectedUniqueValue.split('||');
+                                        if (parts.length != 2) {
+                                          return;
+                                        }
+
+                                        final empId = parts[0];
+                                        final slot = parts[1];
+
+                                        final startStr =
+                                            slot.split(' – ')[0].trim();
+                                        TimeOfDay? parsedTime;
+
+                                        try {
+                                          final timeParts = startStr.split(':');
+                                          if (timeParts.length == 2) {
+                                            final hour =
+                                                int.parse(timeParts[0]);
+                                            final minute =
+                                                int.parse(timeParts[1]);
+                                            parsedTime = TimeOfDay(
+                                                hour: hour, minute: minute);
+                                          }
+                                        } catch (_) {}
+
+                                        if (parsedTime == null) {
+                                          try {
+                                            final format = DateFormat('h:mm a');
+                                            final dt = format.parse(startStr);
+                                            parsedTime =
+                                                TimeOfDay.fromDateTime(dt);
+                                          } catch (_) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(SnackBar(
+                                                    content: Text(
+                                                        'Cannot parse time: $startStr')));
+                                            return;
+                                          }
+                                        }
+
+                                        setState(() {
+                                          _carTimes[carIndex] = parsedTime;
+                                          _selectedFullSlots[carIndex] = slot;
+                                          _selectedDetailerId = empId;
+                                        });
+                                      },
+                                    ),
+                                    if (selectedTimeStr != null) ...[
+                                      const SizedBox(height: 12),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 14, vertical: 8),
+                                        decoration: BoxDecoration(
+                                          color: _accentColor.withValues(
+                                              alpha: 0.15),
+                                          borderRadius:
+                                              BorderRadius.circular(30),
+                                        ),
+                                        child: Text(
+                                          'Selected: $selectedTimeStr',
+                                          style: TextStyle(
+                                            color: _accentColor,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              );
+                            }),
+                          ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // Address field
+                KeyedSubtree(
+                  key: _addressKey,
+                  child: GooglePlaceAutoCompleteTextField(
+                    focusNode: _addressFocusNode,
+                    googleAPIKey: "AIzaSyDxrc2tPDR-SpPhC5rBZynOPxnbBvN2oGc",
+                    textEditingController: _addressController,
+                    inputDecoration: InputDecoration(
+                      labelText: 'Address *',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      hintText: 'Start typing your address...',
+                      hintStyle: const TextStyle(color: Colors.white38),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      filled: true,
+                      fillColor: Colors.black12,
+                      prefixIcon: Icon(Icons.location_on, color: _accentColor),
+                    ),
+                    debounceTime: 800,
+                    itemClick: (prediction) {
+                      _addressController.text = prediction.description ?? '';
+                      _addressFocusNode.requestFocus();
+                    },
+                    isLatLngRequired: false,
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                // Additional Notes
+                TextFormField(
+                  controller: _notesController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    labelText: 'Additional Notes',
+                    labelStyle: const TextStyle(color: Colors.white70),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    filled: true,
+                    fillColor: Colors.black12,
+                  ),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 120), // reduced for large phones
+              ],
             ),
           ),
-        ],
+        ),
       ),
       bottomNavigationBar: SafeArea(
         child: Padding(

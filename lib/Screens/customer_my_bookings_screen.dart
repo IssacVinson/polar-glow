@@ -264,157 +264,172 @@ class _CustomerMyBookingsScreenState extends State<CustomerMyBookingsScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
+      builder: (ctx) => Padding(
+        // This line + SingleChildScrollView fixes ALL keyboard overflow
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          left: 24,
-          right: 24,
-          top: 24,
+          bottom: MediaQuery.of(ctx).viewInsets.bottom,
         ),
-        decoration: BoxDecoration(
-          color: Colors.grey[900],
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 48,
-                height: 5,
-                decoration: BoxDecoration(
-                  color: Colors.white24,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(32)),
             ),
-            const SizedBox(height: 24),
-            Text(
-              'Booking Details',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-            ),
-            const SizedBox(height: 24),
-            _detailRow('Date',
-                DateFormat('EEEE, MMMM d, yyyy').format(alaskaDate)), // ← FIXED
-            _detailRow(
-                'Time', data['cars']?[0]?['time'] ?? data['timeSlot'] ?? 'N/A'),
-            _detailRow('Assigned to', employeeName),
-            const SizedBox(height: 28),
-            TextField(
-              controller: addressController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Address',
-                labelStyle: const TextStyle(color: Colors.white70),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                filled: true,
-                fillColor: Colors.black12,
-              ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              controller: notesController,
-              maxLines: 3,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                labelText: 'Notes',
-                labelStyle: const TextStyle(color: Colors.white70),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                filled: true,
-                fillColor: Colors.black12,
-              ),
-            ),
-            const SizedBox(height: 32),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton(
-                    onPressed: () => Navigator.pop(ctx),
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      foregroundColor: Colors.white70,
-                      side: const BorderSide(color: Colors.white24),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 48,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: Colors.white24,
+                        borderRadius: BorderRadius.circular(10),
                       ),
                     ),
-                    child: const Text('Cancel'),
                   ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: FilledButton(
-                    onPressed: () async {
-                      await FirebaseFirestore.instance
-                          .collection('bookings')
-                          .doc(bookingId)
-                          .update({
-                        'address': addressController.text.trim(),
-                        'notes': notesController.text.trim(),
-                      });
-                      if (mounted) {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('✅ Booking updated')));
-                      }
-                    },
-                    style: FilledButton.styleFrom(
-                      backgroundColor: _accentColor,
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(vertical: 18),
-                      shape: RoundedRectangleBorder(
+                  const SizedBox(height: 24),
+                  Text(
+                    'Booking Details',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                  ),
+                  const SizedBox(height: 24),
+                  _detailRow('Date',
+                      DateFormat('EEEE, MMMM d, yyyy').format(alaskaDate)),
+                  _detailRow('Time',
+                      data['cars']?[0]?['time'] ?? data['timeSlot'] ?? 'N/A'),
+                  _detailRow('Assigned to', employeeName),
+                  const SizedBox(height: 28),
+
+                  // Address field
+                  TextField(
+                    controller: addressController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Address',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
-                    ),
-                    child: const Text('Save Changes'),
-                  ),
-                ),
-              ],
-            ),
-            if (isCompleted) ...[
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  icon: const Icon(Icons.star, size: 26),
-                  label: const Text(
-                    'Write a Review',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: _goldColor,
-                    foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(vertical: 22),
-                    elevation: 14,
-                    shadowColor: _goldColor.withOpacity(0.6),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(24),
+                      filled: true,
+                      fillColor: Colors.black12,
                     ),
                   ),
-                  onPressed: () {
-                    Navigator.pop(ctx);
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => CustomerFeedbackScreen(
-                          preselectedBookingId: bookingId,
+                  const SizedBox(height: 20),
+
+                  // Notes field
+                  TextField(
+                    controller: notesController,
+                    maxLines: 3,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      labelText: 'Notes',
+                      labelStyle: const TextStyle(color: Colors.white70),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      filled: true,
+                      fillColor: Colors.black12,
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            foregroundColor: Colors.white70,
+                            side: const BorderSide(color: Colors.white24),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: const Text('Cancel'),
                         ),
                       ),
-                    );
-                  },
-                ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: FilledButton(
+                          onPressed: () async {
+                            await FirebaseFirestore.instance
+                                .collection('bookings')
+                                .doc(bookingId)
+                                .update({
+                              'address': addressController.text.trim(),
+                              'notes': notesController.text.trim(),
+                            });
+                            if (mounted) {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                      content: Text('✅ Booking updated')));
+                            }
+                          },
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _accentColor,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 18),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                          child: const Text('Save Changes'),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  if (isCompleted) ...[
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        icon: const Icon(Icons.star, size: 26),
+                        label: const Text(
+                          'Write a Review',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: _goldColor,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 22),
+                          elevation: 14,
+                          shadowColor: _goldColor.withOpacity(0.6),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => CustomerFeedbackScreen(
+                                preselectedBookingId: bookingId,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 20), // extra safe space for keyboard
+                ],
               ),
-            ],
-            const SizedBox(height: 12),
-          ],
+            ),
+          ),
         ),
       ),
     );
