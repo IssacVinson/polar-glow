@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "com.polarglowdetailing" "\0"
+            VALUE "CompanyName", "com.polarglowak" "\0"
             VALUE "FileDescription", "polar_glow" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "polar_glow" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 com.polarglowdetailing. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 com.polarglowak. All rights reserved." "\0"
             VALUE "OriginalFilename", "polar_glow.exe" "\0"
             VALUE "ProductName", "polar_glow" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
