@@ -10,7 +10,8 @@ exports.createPaymentIntent = onCall(
   {
     cors: true,
     secrets: [stripeSecret],
-    region: "us-west1",              
+    region: "us-west1",
+    enforceAppCheck: false,        // ← THIS FIXES THE SESSION EXPIRED ERROR
   },
   async (request) => {
     try {

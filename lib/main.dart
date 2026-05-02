@@ -13,13 +13,11 @@ import 'auth_wrapper.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from .env file
   await dotenv.load(fileName: ".env");
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Load Stripe publishable key from .env (never committed to GitHub)
-  // Skip on web because flutter_stripe has no web support
+  // No App Check code — this is the clean version
   if (!kIsWeb) {
     Stripe.publishableKey = dotenv.env['STRIPE_PUBLISHABLE_KEY']!;
     await Stripe.instance.applySettings();

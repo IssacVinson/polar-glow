@@ -9,6 +9,42 @@
       "client_info": {
         "mobilesdk_app_id": "1:481861301714:android:ee027400e36675491a440b",
         "android_client_info": {
+          "package_name": "com.example.polar_glow"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "481861301714-ugljctpjsd3c6f9isrmvsh0nq5a6s5ip.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCrVamC6_aUo611d4d-X1UPWsKFS6L-sWo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "481861301714-ugljctpjsd3c6f9isrmvsh0nq5a6s5ip.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "481861301714-f32j5obc35vd6jeucs5b86656382uglq.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.polarGlowApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:481861301714:android:0e1f77fb81ce5cf31a440b",
+        "android_client_info": {
           "package_name": "com.polarglowak.app"
         }
       },
@@ -34,7 +70,7 @@
               "client_id": "481861301714-f32j5obc35vd6jeucs5b86656382uglq.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.polarglowak.app"
+                "bundle_id": "com.example.polarGlowApp"
               }
             }
           ]
@@ -45,7 +81,7 @@
       "client_info": {
         "mobilesdk_app_id": "1:481861301714:android:48b1567f475a21ff1a440b",
         "android_client_info": {
-          "package_name": "com.polarglowak"
+          "package_name": "com.polarglowdetailing.polar_glow_app"
         }
       },
       "oauth_client": [
@@ -70,7 +106,7 @@
               "client_id": "481861301714-f32j5obc35vd6jeucs5b86656382uglq.apps.googleusercontent.com",
               "client_type": 2,
               "ios_info": {
-                "bundle_id": "com.polarglowak.app"
+                "bundle_id": "com.example.polarGlowApp"
               }
             }
           ]
