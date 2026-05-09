@@ -341,19 +341,14 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user != null) {
-        print('🔄 Refreshing auth token before payment...');
         await user.reload();
         await user.getIdToken(true);
       }
-
-      print('🔥 Calling createPaymentIntent for booking ${docRef.id}');
 
       final paymentData = await _firestore.createPaymentIntent(
         bookingId: docRef.id,
         amount: _totalPrice,
       );
-
-      print('✅ PaymentIntent created successfully');
 
       await Stripe.instance.initPaymentSheet(
         paymentSheetParameters: SetupPaymentSheetParameters(
@@ -364,8 +359,6 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
       );
 
       await Stripe.instance.presentPaymentSheet();
-
-      print('✅ PaymentSheet presented and completed');
 
       await _firestore.confirmStripePayment(
         bookingId: docRef.id,
@@ -381,22 +374,19 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
-      print('❌ PAYMENT ERROR DETAILS:');
-      print(e);
-      print('Stack trace:');
-      print(StackTrace.current);
-
       await _firestore.deleteBooking(docRef.id);
 
       String userMessage = 'Payment failed. Please try again or use cash.';
 
       if (e.toString().contains('UNAUTHENTICATED') ||
           e.toString().contains('unauthenticated') ||
-          e.toString().contains('Session expired')) {
+          e.toString().contains('Session expired') ||
+          e.toString().contains('auth')) {
         userMessage =
             'Session expired.\nPlease log out and log back in, then try again.';
       } else if (e.toString().contains('payment') ||
-          e.toString().contains('Stripe')) {
+          e.toString().contains('Stripe') ||
+          e.toString().contains('clientSecret')) {
         userMessage = 'Stripe payment issue. Please try again or use cash.';
       }
 

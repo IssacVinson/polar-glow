@@ -1,5 +1,4 @@
 // lib/core/services/firestore_service.dart
-// FIXED: Added deleteBooking + stronger auth refresh for createPaymentIntent
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -270,7 +269,6 @@ class FirestoreService {
     return await _db.collection('bookings').add(booking.toMap());
   }
 
-  /// NEW: Cleanup booking if Stripe payment fails
   Future<void> deleteBooking(String bookingId) async {
     try {
       await _db.collection('bookings').doc(bookingId).delete();
@@ -297,7 +295,7 @@ class FirestoreService {
     });
   }
 
-  /// FIXED: Aggressive auth refresh (fixes UNAUTHENTICATED / session expired)
+  /// Clean production version of createPaymentIntent
   Future<Map<String, dynamic>> createPaymentIntent({
     required String bookingId,
     required double amount,
@@ -309,7 +307,7 @@ class FirestoreService {
           'User must be authenticated to create a payment intent. Please log in again.');
     }
 
-    // Strongest possible token refresh
+    // Refresh token before calling the function (best practice)
     await user.reload();
     await user.getIdToken(true);
 
@@ -325,6 +323,7 @@ class FirestoreService {
         'bookingId': bookingId,
         'amount': (amount * 100).round(),
       });
+
       return result.data as Map<String, dynamic>;
     } on FirebaseFunctionsException catch (e) {
       if (e.code == 'unauthenticated') {
