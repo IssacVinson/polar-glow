@@ -1,6 +1,3 @@
-// lib/core/models/review_model.dart
-// NEW FILE — Create this exact path/file in your project
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 enum ReviewType {

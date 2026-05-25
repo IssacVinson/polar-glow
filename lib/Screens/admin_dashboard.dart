@@ -1,8 +1,3 @@
-// lib/Screens/admin_dashboard.dart
-// FIXED: Text overflow on cards (especially "Promote Accounts" → now wraps cleanly)
-// Premium dark theme with glowing cards + fully responsive
-// REMOVED: Track Employees button + AdminEmployeeListScreen (redundant — all info now elsewhere)
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 

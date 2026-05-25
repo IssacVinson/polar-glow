@@ -17,7 +17,6 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // No App Check code — this is the clean version
   if (!kIsWeb) {
     Stripe.publishableKey = dotenv.env['STRIPE_PUBLISHABLE_KEY']!;
     await Stripe.instance.applySettings();

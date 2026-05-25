@@ -1,6 +1,3 @@
-// lib/core/models/clock_event_model.dart
-// UPDATED: Added payoutId so we can permanently flag events as already paid out
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ClockEventModel {

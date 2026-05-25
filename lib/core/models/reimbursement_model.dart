@@ -1,6 +1,3 @@
-// lib/core/models/reimbursement_model.dart
-// UPDATED: Added receiptUrl support (used for receipt photos)
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../utils/alaska_date_utils.dart';
 
