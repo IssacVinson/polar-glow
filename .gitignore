@@ -46,3 +46,8 @@ app.*.map.json
 
 #stripe pk
 .env
+
+# Play upload signing (never commit)
+android/key.properties
+*.jks
+*.keystore

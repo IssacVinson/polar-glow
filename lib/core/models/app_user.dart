@@ -24,7 +24,7 @@ class AppUser {
       email: data['email'] ?? '',
       displayName: data['displayName'],
       role: (data['role'] as String?)?.toLowerCase() ?? 'customer',
-      phoneNumber: data['phone'],
+      phoneNumber: data['phoneNumber'] ?? data['phone'],
       hourlyRate: (data['hourlyRate'] as num?)?.toDouble(),
     );
   }

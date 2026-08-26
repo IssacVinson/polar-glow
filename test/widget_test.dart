@@ -1,27 +1,82 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:polar_glow/core/theme/app_colors.dart';
+import 'package:polar_glow/core/theme/app_theme.dart';
+import 'package:polar_glow/core/widgets/app_widgets.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
+  setUpAll(() {
+    GoogleFonts.config.allowRuntimeFetching = false;
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  test('brand colors match polarglowak.com', () {
+    expect(AppColors.primary, const Color(0xFF0B1215));
+    expect(AppColors.navy, const Color(0xFF0C2340));
+    expect(AppColors.cyan, const Color(0xFF00AEEF));
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  testWidgets('theme uses cyan primary and dark scaffold', (tester) async {
+    late ColorScheme scheme;
+    late Color scaffold;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Builder(
+          builder: (context) {
+            scheme = Theme.of(context).colorScheme;
+            scaffold = Theme.of(context).scaffoldBackgroundColor;
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+    expect(scheme.primary, AppColors.cyan);
+    expect(scaffold, AppColors.primary);
+  });
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+  testWidgets('empty and error states render copy', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: const Scaffold(
+          body: GlowEmptyState(
+            icon: Icons.event,
+            title: 'No bookings yet',
+            message: 'Book a mobile detail from the Book tab.',
+          ),
+        ),
+      ),
+    );
+    expect(find.text('No bookings yet'), findsOneWidget);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: GlowErrorState(
+            message: 'Failed to load services.',
+            onRetry: () {},
+          ),
+        ),
+      ),
+    );
+    expect(find.text('Something went wrong'), findsOneWidget);
+    expect(find.text('TRY AGAIN'), findsOneWidget);
+  });
+
+  testWidgets('primary button uses uppercase label', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark(),
+        home: Scaffold(
+          body: GlowPrimaryButton(
+            label: 'Book an appointment',
+            onPressed: () {},
+          ),
+        ),
+      ),
+    );
+    expect(find.text('BOOK AN APPOINTMENT'), findsOneWidget);
   });
 }
