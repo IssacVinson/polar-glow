@@ -16,6 +16,10 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.polarglowak.app"
+    // Google Play (new phone apps + updates from 31 Aug 2026): Android 16 / API 36.
+    // API 35 is not enough for a first Polar Glow listing.
+    // Pin integers here. Delegating to the Flutter Gradle extension can still
+    // resolve to 35 on older Flutter SDKs, and Play will reject the AAB.
     compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
@@ -33,7 +37,7 @@ android {
     defaultConfig {
         applicationId = "com.polarglowak.app"
         minSdk = 24
-        targetSdk = 36
+        targetSdk = 36 // Android 16; required for new Play listings from 31 Aug 2026
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
