@@ -24,7 +24,7 @@ class CustomerServicesScreen extends StatefulWidget {
 }
 
 class _CustomerServicesScreenState extends State<CustomerServicesScreen> {
-  final FirestoreService _firestore = FirestoreService();
+  FirestoreService? _firestore;
   List<ServiceModel> _services = [];
   String? _errorMessage;
   bool _loading = true;
@@ -49,7 +49,9 @@ class _CustomerServicesScreenState extends State<CustomerServicesScreen> {
     });
 
     try {
-      final services = await (widget.loadServices ?? _firestore.getServices)();
+      final loader =
+          widget.loadServices ?? (_firestore ??= FirestoreService()).getServices;
+      final services = await loader();
       if (mounted) {
         setState(() {
           _services = services;

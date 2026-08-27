@@ -4,7 +4,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:polar_glow/core/theme/app_colors.dart';
 import 'package:polar_glow/core/theme/app_theme.dart';
 import 'package:polar_glow/core/widgets/app_widgets.dart';
-// GlowLoading / GlowSectionLabel live in app_widgets.dart.
 
 void main() {
   setUpAll(() {
