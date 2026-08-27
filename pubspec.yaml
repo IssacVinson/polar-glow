@@ -3,8 +3,8 @@ description: Polar Glow Car Detailing – Professional on-location vehicle detai
 
 publish_to: 'none'
 
-# Version for Google Play Store submission
-version: 1.0.2+3
+# Version for Google Play / App Store
+version: 1.0.3+4
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -58,4 +58,4 @@ flutter:
 
   assets:
     - assets/images/logo.png
-    - .env
+    - .env.example

@@ -16,7 +16,11 @@ if (keystorePropertiesFile.exists()) {
 
 android {
     namespace = "com.polarglowak.app"
-    compileSdk = flutter.compileSdkVersion
+    // Google Play (new phone apps + updates from 31 Aug 2026): Android 16 / API 36.
+    // API 35 is not enough for a first Polar Glow listing.
+    // Pin integers here. Delegating to the Flutter Gradle extension can still
+    // resolve to 35 on older Flutter SDKs, and Play will reject the AAB.
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -32,8 +36,8 @@ android {
 
     defaultConfig {
         applicationId = "com.polarglowak.app"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        minSdk = 24
+        targetSdk = 36 // Android 16; required for new Play listings from 31 Aug 2026
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -49,7 +53,17 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            // Use the upload keystore when android/key.properties is present.
+            // Otherwise the AAB still compiles (Play Console signing is a human step).
+            signingConfig = if (keystorePropertiesFile.exists() &&
+                keystoreProperties["storeFile"] != null
+            ) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
