@@ -3,6 +3,8 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 
+import 'account_deletion_rules.dart';
+
 /// Deletes the signed-in Firebase Auth user and associated Firestore/Storage data.
 ///
 /// Prefers the `deleteOwnAccount` Cloud Function (Admin SDK, bypasses rules).
@@ -37,16 +39,15 @@ class AccountDeletionService {
 
     try {
       final callable = _functions.httpsCallable(
-        'deleteOwnAccount',
+        AccountDeletionRules.callableName,
         options: HttpsCallableOptions(timeout: const Duration(seconds: 60)),
       );
       await callable.call();
     } on FirebaseFunctionsException catch (e) {
-      final missing = e.code == 'not-found' ||
-          e.code == 'unimplemented' ||
-          e.code == 'unavailable' ||
-          (e.message?.toLowerCase().contains('not found') ?? false);
-      if (!missing) {
+      if (!AccountDeletionRules.isMissingCallable(
+        code: e.code,
+        message: e.message,
+      )) {
         rethrow;
       }
       await _deleteClientSide(user);
@@ -83,13 +84,9 @@ class AccountDeletionService {
         .get();
     for (final doc in bookings.docs) {
       final data = doc.data();
-      final status = (data['status'] ?? '').toString().toLowerCase();
-      final paid = data['paymentStatus'] == 'paid' || data['paid'] == true;
-      if (paid || status == 'completed') {
+      if (AccountDeletionRules.shouldAnonymizeBooking(data)) {
         await doc.reference.update({
-          'customerId': 'deleted_user',
-          'address': '',
-          'notes': '',
+          ...AccountDeletionRules.anonymizedFields(),
           'customerDeletedAt': FieldValue.serverTimestamp(),
         });
       } else {

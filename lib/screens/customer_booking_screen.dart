@@ -5,9 +5,11 @@ import 'package:flutter_stripe/flutter_stripe.dart' hide Card;
 import 'package:google_places_flutter/google_places_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import '../core/booking/booking_flow.dart';
 import '../core/models/booking_model.dart';
 import '../core/services/firestore_service.dart';
 import '../core/utils/alaska_date_utils.dart';
+import '../core/widgets/booking_pay_bar.dart';
 import '../providers/auth_provider.dart';
 import 'customer_calendar_view.dart';
 import '../core/theme/app_colors.dart';
@@ -51,12 +53,10 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
 
   final FirestoreService _firestore = FirestoreService();
 
-  double get _totalPrice =>
-      widget.selectedServices.fold<double>(
-        0.0,
-        (acc, s) => acc + (s['price'] as num).toDouble(),
-      ) *
-      _numCars;
+  double get _totalPrice => BookingQuote.total(
+        services: widget.selectedServices,
+        numCars: _numCars,
+      );
 
   Color get _accentColor => AppColors.cyan;
 
@@ -179,22 +179,20 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
                 .where('date', isEqualTo: Timestamp.fromDate(storageDate))
                 .get();
 
-            final bookedTimes = bookedSnap.docs
-                .map((b) =>
-                    (b.data()['cars']?[0]?['time'] ?? b.data()['time'] ?? '')
-                        .toString())
-                .where((t) => t.isNotEmpty)
-                .toSet();
-
-            final freeSlots =
-                timeSlots.where((slot) => !bookedTimes.contains(slot)).toList();
-
-            if (freeSlots.isNotEmpty) {
-              slots.add({
-                'employeeId': employeeId,
-                'employeeName': emp['name'],
-                'slots': freeSlots,
-              });
+            final bookedTimes =
+                BookingSlots.bookedTimesFromDocs(
+              bookedSnap.docs.map((b) => b.data()).toList(),
+            );
+            final entry = BookingSlots.freeEntry(
+              region: widget.selectedRegion,
+              regions: regions,
+              timeSlots: timeSlots,
+              bookedTimes: bookedTimes,
+              employeeId: employeeId,
+              employeeName: emp['name'] as String,
+            );
+            if (entry != null) {
+              slots.add(entry);
             }
           }
         }
@@ -229,64 +227,71 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
       return null;
     }
 
-    if (_addressController.text.trim().isEmpty) {
-      _focusFirstMissingField();
-      return null;
-    }
+    final vehicles =
+        _vehicleControllers.map((c) => c.text.trim()).toList(growable: false);
+    final times = List<String?>.generate(
+      _numCars,
+      (i) => _carTimes[i]?.format(context),
+    );
 
-    if (_selectedDay == null) {
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('Please select a date')));
-      return null;
-    }
-
-    if (!_allCarsHaveTime) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please select a time for every car'),
-        backgroundColor: Colors.red,
+    final validation = BookingFlow.validate(
+      address: _addressController.text,
+      selectedDay: _selectedDay,
+      vehicles: vehicles,
+      times: times,
+      selectedDetailerId: _selectedDetailerId,
+      availableSlots: _availableSlots,
+    );
+    if (validation != null) {
+      if (validation.code == BookingValidationCode.missingAddress) {
+        _focusFirstMissingField();
+        return null;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(validation.message),
+        backgroundColor:
+            validation.code == BookingValidationCode.missingCarTime
+                ? Colors.red
+                : null,
       ));
       return null;
     }
 
-    final List<Map<String, dynamic>> cars = [];
-    for (int i = 0; i < _numCars; i++) {
-      final vehicleText = _vehicleControllers[i].text.trim();
-      final time = _carTimes[i]!;
-
-      if (vehicleText.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Please enter vehicle info for car ${i + 1}')));
-        return null;
-      }
-
-      cars.add({'vehicle': vehicleText, 'time': time.format(context)});
-    }
-
-    String? assignedDetailerId = _selectedDetailerId;
-    if (assignedDetailerId == null) {
-      if (_availableSlots.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content:
-                Text('No available detailers in your region on this day')));
-        return null;
-      }
-      assignedDetailerId = _availableSlots.first['employeeId'] as String?;
+    final draft = BookingFlow.buildDraft(
+      customerId: context.read<AuthProvider>().user!.uid,
+      address: _addressController.text,
+      notes: _notesController.text,
+      selectedDay: _selectedDay,
+      vehicles: vehicles,
+      times: times,
+      selectedDetailerId: _selectedDetailerId,
+      availableSlots: _availableSlots,
+      services: widget.selectedServices,
+      numCars: _numCars,
+      paymentMethod: paymentMethod,
+    );
+    if (draft == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content:
+              Text('No available detailers in your region on this day')));
+      return null;
     }
 
     final booking = BookingModel(
       id: '',
-      customerId: context.read<AuthProvider>().user!.uid,
-      date: _selectedDay!,
-      cars: cars,
-      services: widget.selectedServices,
-      totalPrice: _totalPrice,
-      assignedDetailerId: assignedDetailerId,
-      address: _addressController.text.trim(),
-      notes: _notesController.text.trim(),
-      status: 'pending',
-      paymentMethod: paymentMethod,
-      paymentStatus: 'unpaid',
+      customerId: draft.customerId,
+      date: draft.date,
+      cars: draft.cars,
+      services: draft.services,
+      totalPrice: draft.totalPrice,
+      assignedDetailerId: draft.assignedDetailerId,
+      address: draft.address,
+      notes: draft.notes,
+      status: draft.status,
+      paymentMethod: draft.paymentMethod,
+      paymentStatus: draft.paymentStatus,
     );
+    final assignedDetailerId = draft.assignedDetailerId;
 
     try {
       final docRef = await _firestore.createBookingWithPaymentMethod(booking);
@@ -296,7 +301,7 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
         if (fullSlot != null && fullSlot.isNotEmpty) {
           await FirebaseFirestore.instance
               .collection('users')
-              .doc(assignedDetailerId!)
+              .doc(assignedDetailerId)
               .collection('availability')
               .doc(dateStr)
               .update({
@@ -946,64 +951,11 @@ class _CustomerBookingScreenState extends State<CustomerBookingScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SizedBox(
-                width: double.infinity,
-                child: FilledButton.icon(
-                  icon: const Icon(Icons.credit_card, size: 26),
-                  label: Text(
-                    'Pay in Full Now \$${_totalPrice.toStringAsFixed(2)}',
-                    style: const TextStyle(
-                      fontSize: 19,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 22),
-                    backgroundColor: _accentColor,
-                    foregroundColor: AppColors.onCyan,
-                    elevation: 10,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: _isProcessingPayment ? null : _payWithCard,
-                ),
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  icon: const Icon(Icons.money, size: 26),
-                  label: const Text(
-                    'Pay Cash When Detailer Arrives',
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 20),
-                    foregroundColor: Colors.white,
-                    side: const BorderSide(color: Colors.white54),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: _isProcessingPayment ? null : _payCash,
-                ),
-              ),
-              if (_isProcessingPayment)
-                const Padding(
-                  padding: EdgeInsets.only(top: 16),
-                  child: CircularProgressIndicator(color: AppColors.cyan),
-                ),
-            ],
-          ),
-        ),
+      bottomNavigationBar: BookingPayBar(
+        totalPrice: _totalPrice,
+        isProcessing: _isProcessingPayment,
+        onPayCard: _payWithCard,
+        onPayCash: _payCash,
       ),
     );
   }

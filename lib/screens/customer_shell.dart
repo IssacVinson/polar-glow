@@ -7,7 +7,10 @@ import 'customer_my_bookings_screen.dart';
 import 'settings_screen.dart';
 
 class CustomerShell extends StatefulWidget {
-  const CustomerShell({super.key});
+  const CustomerShell({super.key, this.pages});
+
+  /// Test override so the nav chrome can be pumped without Firestore.
+  final List<Widget>? pages;
 
   @override
   State<CustomerShell> createState() => _CustomerShellState();
@@ -18,12 +21,13 @@ class _CustomerShellState extends State<CustomerShell> {
 
   @override
   Widget build(BuildContext context) {
-    final pages = <Widget>[
-      const CustomerDashboard(),
-      const CustomerServicesScreen(embedded: true),
-      const CustomerMyBookingsScreen(embedded: true),
-      const SettingsScreen(embedded: true),
-    ];
+    final pages = widget.pages ??
+        <Widget>[
+          const CustomerDashboard(),
+          const CustomerServicesScreen(embedded: true),
+          const CustomerMyBookingsScreen(embedded: true),
+          const SettingsScreen(embedded: true),
+        ];
 
     return Scaffold(
       body: IndexedStack(index: _index, children: pages),

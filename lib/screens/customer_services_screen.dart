@@ -8,9 +8,16 @@ import '../core/widgets/app_widgets.dart';
 import 'customer_booking_screen.dart';
 
 class CustomerServicesScreen extends StatefulWidget {
-  const CustomerServicesScreen({super.key, this.embedded = false});
+  const CustomerServicesScreen({
+    super.key,
+    this.embedded = false,
+    this.loadServices,
+  });
 
   final bool embedded;
+
+  /// Test override so the Book tab can be pumped without Firestore.
+  final Future<List<ServiceModel>> Function()? loadServices;
 
   @override
   State<CustomerServicesScreen> createState() => _CustomerServicesScreenState();
@@ -42,7 +49,7 @@ class _CustomerServicesScreenState extends State<CustomerServicesScreen> {
     });
 
     try {
-      final services = await _firestore.getServices();
+      final services = await (widget.loadServices ?? _firestore.getServices)();
       if (mounted) {
         setState(() {
           _services = services;
