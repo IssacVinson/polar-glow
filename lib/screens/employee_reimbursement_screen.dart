@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
+import '../core/media/job_photo_picker.dart';
 import '../core/models/reimbursement_model.dart';
 import '../core/services/firestore_service.dart';
 import '../providers/auth_provider.dart' as app_auth;
@@ -197,7 +198,7 @@ class _SubmitReimbursementFormState extends State<_SubmitReimbursementForm> {
   XFile? _receiptImage;
   bool _isSubmitting = false;
 
-  final ImagePicker _picker = ImagePicker();
+  final JobPhotoPicker _picker = JobPhotoPicker();
   final FirestoreService _firestore = FirestoreService();
 
   @override
@@ -209,10 +210,7 @@ class _SubmitReimbursementFormState extends State<_SubmitReimbursementForm> {
   }
 
   Future<void> _pickReceipt() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 85,
-    );
+    final XFile? image = await _picker.pickFromGallery(imageQuality: 85);
     if (image != null) setState(() => _receiptImage = image);
   }
 

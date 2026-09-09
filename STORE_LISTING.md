@@ -2,7 +2,7 @@
 
 Use this with Google Play Console and App Store Connect. Do not put the DUNS number in the app or in public listing text.
 
-**Version in this PR:** 1.0.3+4  
+**Version in this PR:** 1.0.3+6  
 **Application ID / bundle ID:** `com.polarglowak.app`  
 **Privacy Policy:** https://issacvinson.github.io/polar-glow/privacy_policy.html  
 **Account deletion help page:** https://issacvinson.github.io/polar-glow/delete-account.html  
@@ -83,7 +83,7 @@ Collected:
 - Physical address for the appointment (precise location via Google Places text search; optional device location)
 - Vehicle descriptions and booking notes
 - Purchase history (Stripe; Polar Glow does not store full card numbers)
-- Photos (employee reimbursement receipts only)
+- Photos (employee reimbursement receipts and optional before/after job photos only; selected one-at-a-time via the Android Photo Picker / iOS PHPicker — the app does not request `READ_MEDIA_IMAGES`, `READ_MEDIA_VIDEO`, or broad storage access)
 - User-generated content (reviews)
 
 Used for: App functionality, customer support, fraud prevention.
@@ -109,8 +109,9 @@ Account deletion: in-app, Settings → Delete account.
 3. From the repo root, with Flutter 3.47+ (compile/target SDK 36):
    `flutter build appbundle --release`
 4. In Play Console: create the app, complete store listing, content rating, target audience (18+), Data safety, and privacy policy URL.
-5. Upload `build/app/outputs/bundle/release/app-release.aab`.
+5. Upload `build/app/outputs/bundle/release/app-release.aab` (version **1.0.3+6**).
 6. New Play apps from 31 Aug 2026 must target API 36 — this project already sets `compileSdk 36` and `targetSdk 36`.
+7. Publishing overview: version code 6 must not show “Use alternative system pickers for photos / videos.” The AAB must not declare `READ_MEDIA_IMAGES` / `READ_MEDIA_VIDEO`. If an older track still has version code 5, deactivate or replace that artifact so Play does not evaluate the old permission set.
 
 ### iOS (App Store)
 1. Enroll in Apple Developer ($99/year). Use an organization account if Polar Glow is an LLC; otherwise Individual. DUNS 145039246 is for Apple’s organization identity check — do not put it in the app.

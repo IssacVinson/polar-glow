@@ -29,7 +29,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Polar Glow uses the camera so detailers can photograph reimbursement receipts.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Polar Glow accesses your photos so detailers can attach reimbursement receipts.</string>
+	<string>Polar Glow uses the system photo picker so detailers can attach reimbursement receipts or before/after job photos you choose.</string>
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>Polar Glow may save images you capture for reimbursement receipts.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>

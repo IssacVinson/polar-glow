@@ -9,11 +9,13 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'auth_wrapper.dart';
+import 'core/media/android_photo_picker.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/app_colors.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  enableAndroidSystemPhotoPicker();
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
