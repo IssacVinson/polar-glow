@@ -40,9 +40,11 @@ jobs:
           STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
         run: |
           missing=0
-          for v in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8 STRIPE_PUBLISHABLE_KEY; do
+          for v in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
             if [ -z "${!v}" ]; then echo "::error::Missing repo secret $v"; missing=1; fi
           done
+          # Stripe key is optional for TestFlight-only builds; card payments will not work without it.
+          if [ -z "$STRIPE_PUBLISHABLE_KEY" ]; then echo "::warning::STRIPE_PUBLISHABLE_KEY not set; payments disabled in this build"; fi
           exit $missing
 
       - uses: actions/checkout@v4
