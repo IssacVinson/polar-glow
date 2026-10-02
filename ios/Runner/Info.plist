@@ -30,12 +30,6 @@
 	<string>Polar Glow uses the camera so detailers can photograph reimbursement receipts.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Polar Glow uses the system photo picker so detailers can attach reimbursement receipts or before/after job photos you choose.</string>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>Polar Glow may save images you capture for reimbursement receipts.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Polar Glow uses your location to help autocomplete service addresses and match you with detailers in Eagle River, Anchorage, Palmer, Wasilla, and JBER.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Polar Glow uses your location only while the app is open to help with service addresses.</string>
 	<key>UIDeviceFamily</key>
 	<array>
 		<integer>1</integer>
