@@ -63,13 +63,15 @@ jobs:
         run: |
           printf 'STRIPE_PUBLISHABLE_KEY=%s\nGOOGLE_PLACES_API_KEY=\n' "$STRIPE_PUBLISHABLE_KEY" > .env.example
 
-      - name: Flutter build (no codesign)
+      - name: Flutter configure (pub get, pods, build number)
         run: |
           BUILD_NUMBER="${{ github.event.inputs.build_number }}"
           if [ -z "$BUILD_NUMBER" ]; then BUILD_NUMBER=$((GITHUB_RUN_NUMBER + 100)); fi
           echo "Build number: $BUILD_NUMBER"
+          # SwiftPM resolves a Firebase iOS SDK too new for cloud_firestore (FLTPipelineParser.m fails to compile); use CocoaPods-pinned versions.
+          flutter config --no-enable-swift-package-manager
           flutter pub get
-          flutter build ios --release --no-codesign --build-number "$BUILD_NUMBER"
+          flutter build ios --release --config-only --no-codesign --build-number "$BUILD_NUMBER"
 
       - name: Install App Store Connect API key
         env:
@@ -80,7 +82,7 @@ jobs:
           printf '%s\n' "$ASC_KEY_P8" > "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
           chmod 600 "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
 
-      - name: Archive (cloud-managed signing)
+      - name: Archive (unsigned)
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
@@ -97,7 +99,10 @@ jobs:
             -authenticationKeyID "$ASC_KEY_ID" \
             -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic
+            CODE_SIGN_STYLE=Automatic \
+            CODE_SIGNING_ALLOWED=NO
+          # Archive is intentionally unsigned: the team has no registered devices, so Xcode cannot
+          # create a development profile. Distribution signing happens in the export step below.
 
       - name: Export and upload to TestFlight
         env:
